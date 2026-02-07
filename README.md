@@ -1,3 +1,6 @@
+写在最前面，该mod主要使用Copilot开发
+Written at the front, the mod is mainly developed using Copilot
+
 # AE2UEL 智能样板系统 (Smart Pattern System)
 *AE2 Unofficial Extended Life 智能样板系统 - 基于矿物辞典的通配符合成样板*
 
@@ -395,3 +398,4 @@ debug_mode=true
 **版本**: v1.0.0 | **Minecraft**: 1.12.2 | **Forge**: 14.23.5.2847+ | **AE2UEL**: v0.56.8+
 
 *基于 CleanroomMC 的 RetroFuturaGradle 构建* | *完全开源，MIT 许可*
+
