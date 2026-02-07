@@ -1,0 +1,331 @@
+// 样板编辑器容器
+package com.lwx1145.techstart;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.Container;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
+
+public class ContainerPatternEditor extends Container {
+
+    private final EntityPlayer player;
+    private final ItemStack patternStack;
+    private final PatternInputInventory inputInventory = new PatternInputInventory();
+
+    public ContainerPatternEditor(EntityPlayer player) {
+        this.player = player;
+        this.patternStack = findPatternInInventory(player);
+
+        // 样板输入槽位 (用于标记样板)
+        this.addSlotToContainer(new SlotPatternInput(this, 0, 80, 35));
+
+        // 玩家背包槽位 (3行x9列)
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 9; ++j) {
+                this.addSlotToContainer(new Slot(player.inventory, j + i * 9 + 9, 8 + j * 18, 84 + i * 18));
+            }
+        }
+
+        // 玩家快捷栏槽位
+        for (int k = 0; k < 9; ++k) {
+            this.addSlotToContainer(new Slot(player.inventory, k, 8 + k * 18, 142));
+        }
+    }
+
+    /**
+     * 查找玩家物品栏中的样板物品
+     */
+    private ItemStack findPatternInInventory(EntityPlayer player) {
+        // 检查快捷栏
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = player.inventory.getStackInSlot(i);
+            if (stack.getItem() instanceof ItemTest) {
+                return stack;
+            }
+        }
+        // 检查背包
+        for (int i = 9; i < 36; i++) {
+            ItemStack stack = player.inventory.getStackInSlot(i);
+            if (stack.getItem() instanceof ItemTest) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /**
+     * 获取当前样板物品
+     */
+    public ItemStack getPatternStack() {
+        return patternStack;
+    }
+
+    @Override
+    public boolean canInteractWith(EntityPlayer playerIn) {
+        return true;
+    }
+
+    @Override
+    public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
+        ItemStack itemstack = ItemStack.EMPTY;
+        Slot slot = this.inventorySlots.get(index);
+
+        if (slot != null && slot.getHasStack()) {
+            ItemStack itemstack1 = slot.getStack();
+            itemstack = itemstack1.copy();
+
+            if (index == 0) {
+                // 从样板输入槽转移到玩家物品栏
+                if (!this.mergeItemStack(itemstack1, 1, 37, true)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (index < 37) {
+                // 从玩家物品栏转移
+                if (isOreDictItem(itemstack1)) {
+                    // 如果是矿物辞典物品，尝试放入样板输入槽
+                    if (!this.mergeItemStack(itemstack1, 0, 1, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else {
+                    return ItemStack.EMPTY;
+                }
+            }
+
+            if (itemstack1.isEmpty()) {
+                slot.putStack(ItemStack.EMPTY);
+            } else {
+                slot.onSlotChanged();
+            }
+
+            if (itemstack1.getCount() == itemstack.getCount()) {
+                return ItemStack.EMPTY;
+            }
+
+            slot.onTake(playerIn, itemstack1);
+        }
+
+        return itemstack;
+    }
+
+    /**
+     * 检查物品是否在矿物辞典中
+     */
+    private boolean isOreDictItem(ItemStack stack) {
+        int[] oreIds = net.minecraftforge.oredict.OreDictionary.getOreIDs(stack);
+        return oreIds.length > 0;
+    }
+
+    /**
+     * 自定义槽位类 - 样板输入槽
+     */
+    private class SlotPatternInput extends Slot {
+        private final ContainerPatternEditor container;
+
+        public SlotPatternInput(ContainerPatternEditor container, int index, int xPosition, int yPosition) {
+            super(container.inputInventory, index, xPosition, yPosition);
+            this.container = container;
+        }
+
+        @Override
+        public boolean isItemValid(ItemStack stack) {
+            boolean valid = isOreDictItem(stack);
+            System.out.println("SlotPatternInput.isItemValid: " + stack.getDisplayName() + " -> " + valid);
+            return valid;
+        }
+
+        @Override
+        public int getSlotStackLimit() {
+            return 1;
+        }
+
+        @Override
+        public boolean canTakeStack(EntityPlayer playerIn) {
+            return true;
+        }
+
+        @Override
+        public void onSlotChanged() {
+            super.onSlotChanged();
+            // 数据保存逻辑在PatternInputInventory.markDirty()中处理
+        }
+    }
+
+    /**
+     * 样板输入槽的虚拟库存
+     */
+    private class PatternInputInventory implements IInventory {
+        private ItemStack stack = ItemStack.EMPTY;
+
+        @Override
+        public int getSizeInventory() {
+            return 1;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return stack.isEmpty();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int index) {
+            return index == 0 ? stack : ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack decrStackSize(int index, int count) {
+            if (index == 0 && !stack.isEmpty()) {
+                ItemStack itemstack = stack.splitStack(count);
+                if (stack.isEmpty()) {
+                    stack = ItemStack.EMPTY;
+                }
+                markDirty();
+                return itemstack;
+            }
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack removeStackFromSlot(int index) {
+            if (index == 0) {
+                ItemStack itemstack = stack;
+                stack = ItemStack.EMPTY;
+                markDirty();
+                return itemstack;
+            }
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public void setInventorySlotContents(int index, ItemStack stack) {
+            if (index == 0) {
+                this.stack = stack;
+                markDirty();
+            }
+        }
+
+        @Override
+        public int getInventoryStackLimit() {
+            return 1;
+        }
+
+    /**
+     * 样板输入槽的虚拟库存
+     */
+    private class PatternInputInventory implements IInventory {
+        private ItemStack stack = ItemStack.EMPTY;
+
+        @Override
+        public int getSizeInventory() {
+            return 1;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return stack.isEmpty();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int index) {
+            return index == 0 ? stack : ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack decrStackSize(int index, int count) {
+            if (index == 0 && !stack.isEmpty()) {
+                ItemStack itemstack = stack.splitStack(count);
+                if (stack.isEmpty()) {
+                    stack = ItemStack.EMPTY;
+                }
+                markDirty();
+                return itemstack;
+            }
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack removeStackFromSlot(int index) {
+            if (index == 0) {
+                ItemStack itemstack = stack;
+                stack = ItemStack.EMPTY;
+                markDirty();
+                return itemstack;
+            }
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public void setInventorySlotContents(int index, ItemStack stack) {
+            if (index == 0) {
+                this.stack = stack;
+                markDirty();
+            }
+        }
+
+        @Override
+        public int getInventoryStackLimit() {
+            return 1;
+        }
+
+        @Override
+        public void markDirty() {
+            // 当库存改变时，更新样板标记
+            if (!stack.isEmpty() && ContainerPatternEditor.this.patternStack != null) {
+                ItemTest patternItem = (ItemTest) ContainerPatternEditor.this.patternStack.getItem();
+                patternItem.setEncodedItem(ContainerPatternEditor.this.patternStack,
+                    net.minecraftforge.oredict.OreDictionary.getOreName(net.minecraftforge.oredict.OreDictionary.getOreIDs(stack)[0]),
+                    stack.getDisplayName());
+            }
+        }
+
+        @Override
+        public boolean isUsableByPlayer(EntityPlayer player) {
+            return true;
+        }
+
+        @Override
+        public void openInventory(EntityPlayer player) {}
+
+        @Override
+        public void closeInventory(EntityPlayer player) {}
+
+        @Override
+        public boolean isItemValidForSlot(int index, ItemStack stack) {
+            return index == 0 && isOreDictItem(stack);
+        }
+
+        @Override
+        public int getField(int id) {
+            return 0;
+        }
+
+        @Override
+        public void setField(int id, int value) {}
+
+        @Override
+        public int getFieldCount() {
+            return 0;
+        }
+
+        @Override
+        public void clear() {
+            stack = ItemStack.EMPTY;
+            markDirty();
+        }
+
+        @Override
+        public String getName() {
+            return "PatternInput";
+        }
+
+        @Override
+        public boolean hasCustomName() {
+            return false;
+        }
+
+        @Override
+        public net.minecraft.util.text.ITextComponent getDisplayName() {
+            return new net.minecraft.util.text.TextComponentString(getName());
+        }
+    }
+}

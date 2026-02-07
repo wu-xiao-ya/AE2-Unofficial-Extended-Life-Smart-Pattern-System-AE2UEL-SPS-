@@ -1,0 +1,19 @@
+# 物品
+item.sampleintegration.pattern_integrations.name=智能样板
+item.sampleintegration.pattern_integrations.desc0=基于矿物辞典的通配符样板物品
+item.sampleintegration.pattern_integrations.desc1=根据矿辞自动扩展，支持所有已注册金属
+
+# 方块
+tile.sampleintegration.pattern_expander.name=样板扩展器
+tile.sampleintegration.pattern_expander.desc=用于编辑和管理智能样板的专用方块
+
+# GUI
+gui.sampleintegration.pattern_editor=智能样板编辑器
+gui.sampleintegration.input=输入
+gui.sampleintegration.output=输出
+
+# 消息
+message.sampleintegration.pattern_cleared=§a样板已清除
+message.sampleintegration.hint_edit=§e提示：将此物品放入模式展开器方块中进行编辑
+message.sampleintegration.no_pattern=§c请手持智能样板物品
+message.sampleintegration.pattern_saved=§a样板已保存

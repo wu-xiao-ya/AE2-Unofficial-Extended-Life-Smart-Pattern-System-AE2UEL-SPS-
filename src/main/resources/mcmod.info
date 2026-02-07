@@ -1,0 +1,14 @@
+[{
+	"modid": "sampleintegration",
+	"name": "AE2UEL Smart Pattern System",
+	"description": "A sophisticated pattern system designed for AE2UEL. Utilizes Ore Dictionary to create wildcard patterns that automatically expand to multiple crafting recipes. One pattern can match an entire Ore Dictionary series (e.g., turning ingot to plate for 19 different metals).",
+	"version": "1.0.0",
+	"mcversion": "1.12.2",
+	"url": "https://github.com/",
+	"updateUrl": "",
+	"authorList": ["WuXiaoYa"],
+	"credits": "AE2UEL Team, Minecraft Forge Community, CleanroomMC",
+	"logoFile": "assets/sampleintegration/textures/items/pattern_integrations.png",
+	"screenshots": [],
+	"dependencies": ["appliedenergistics2@[0.56.8,)"]
+}]

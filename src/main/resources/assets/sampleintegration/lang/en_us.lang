@@ -1,0 +1,18 @@
+# Items
+item.sampleintegration.pattern_integrations.name=Smart Pattern
+item.sampleintegration.pattern_integrations.desc0=Wildcard Pattern Item based on Ore Dictionary
+item.sampleintegration.pattern_integrations.desc1=Automatically expands to 19 metal crafting recipes
+
+# Blocks
+tile.sampleintegration.pattern_expander.name=Pattern Expander
+tile.sampleintegration.pattern_expander.desc=Dedicated block for editing and managing smart patterns
+# GUI
+gui.sampleintegration.pattern_editor=Smart Pattern Editor
+gui.sampleintegration.input=Input
+gui.sampleintegration.output=Output
+
+# Messages
+message.sampleintegration.pattern_cleared=§aPattern cleared
+message.sampleintegration.hint_edit=§eHint: Place this item in the Pattern Expander block to edit
+message.sampleintegration.no_pattern=§cPlease hold a Smart Pattern item
+message.sampleintegration.pattern_saved=§aPattern saved

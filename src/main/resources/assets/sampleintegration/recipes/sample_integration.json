@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "PQP",
+    "PMP",
+    "PZP"
+  ],
+  "key": {
+    "Q": {
+      "item": "appliedenergistics2:material:47"
+    },
+    "M": {
+      "item": "appliedenergistics2:material:52"
+    },
+    "Z": {
+      "item": "appliedenergistics2:material:35"
+    },
+    "P": {
+      "item": "appliedenergistics2:quartz_glass"
+    }
+  },
+  "result": {
+    "item": "sampleintegration:pattern_integrations",
+    "count": 1
+  }
+}
