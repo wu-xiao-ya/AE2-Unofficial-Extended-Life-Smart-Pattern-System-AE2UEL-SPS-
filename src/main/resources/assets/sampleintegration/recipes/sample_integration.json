@@ -7,13 +7,16 @@
   ],
   "key": {
     "Q": {
-      "item": "appliedenergistics2:material:47"
+      "item": "appliedenergistics2:material",
+      "data": 47
     },
     "M": {
-      "item": "appliedenergistics2:material:52"
+      "item": "appliedenergistics2:material",
+      "data": 52
     },
     "Z": {
-      "item": "appliedenergistics2:material:35"
+      "item": "appliedenergistics2:material",
+      "data": 35
     },
     "P": {
       "item": "appliedenergistics2:quartz_glass"

@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "GGG",
+    "GPG",
+    "GRG"
+  ],
+  "key": {
+    "G": {
+      "item": "appliedenergistics2:quartz_glass"
+    },
+    "P": {
+      "item": "appliedenergistics2:io_port"
+    },
+    "R": {
+      "item": "appliedenergistics2:interface"
+    }
+  },
+  "result": {
+    "item": "sampleintegration:pattern_expander",
+    "count": 1
+  }
+}
