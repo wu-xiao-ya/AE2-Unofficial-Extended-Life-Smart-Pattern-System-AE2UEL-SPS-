@@ -5,8 +5,12 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.NBTTagString;
 import net.minecraft.world.World;
 import net.minecraft.inventory.InventoryCrafting;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.oredict.OreDictionary;
 import java.util.List;
 import java.util.ArrayList;
@@ -20,63 +24,60 @@ import java.util.HashSet;
  */
 public class SmartPatternDetails implements ICraftingPatternDetails {
 
+    private static java.lang.reflect.Method cachedGasRegistryGetGas;
+    private static java.lang.reflect.Constructor<?> cachedGasStackCtor;
+    private static java.lang.reflect.Method cachedFakeGasPack;
+    private static boolean gasHelperReady = false;
+
     private final ItemStack patternStack;
+    private final List<String> inputOreNames;
+    private final List<String> outputOreNames;
+    private final List<Integer> inputCounts;
+    private final List<Integer> outputCounts;
+    // 流体相关字段
+    private final List<String> inputFluids;
+    private final List<String> outputFluids;
+    private final List<Integer> inputFluidAmounts;
+    private final List<Integer> outputFluidAmounts;
+    // 气体相关字段
+    private final List<String> inputGases;
+    private final List<String> outputGases;
+    private final List<Integer> inputGasAmounts;
+    private final List<Integer> outputGasAmounts;
+    private final List<ItemStack> inputGasItems;
+    private final List<ItemStack> outputGasItems;
     private final String inputOreName;
     private final String outputOreName;
     private final String displayName;
     private int priority = 100; // 默认优先级
     private final boolean isVirtual; // 是否是虚拟样板（单个材料）
-    private final ItemStack cachedInput; // 虚拟样板的具体输入物品
-    private final ItemStack cachedOutput; // 虚拟样板的具体输出物品
-    private final int inputCount; // 输入数量
-    private final int outputCount; // 输出数量
+    private final int inputCount; // 输入数量（兼容字段）
+    private final int outputCount; // 输出数量（兼容字段）
 
     public SmartPatternDetails(ItemStack patternStack) {
         this.patternStack = patternStack;
-        // 从NBT中读取输入和输出信息
-        this.inputOreName = ItemTest.getInputOreNameStatic(patternStack);
-        this.outputOreName = ItemTest.getOutputOreNameStatic(patternStack);
+        this.inputOreNames = ItemTest.getInputOreNamesStatic(patternStack);
+        this.outputOreNames = ItemTest.getOutputOreNamesStatic(patternStack);
+        this.inputCounts = ItemTest.getInputCountsStatic(patternStack);
+        this.outputCounts = ItemTest.getOutputCountsStatic(patternStack);
+        this.inputFluids = ItemTest.getInputFluidsStatic(patternStack);
+        this.outputFluids = ItemTest.getOutputFluidsStatic(patternStack);
+        this.inputFluidAmounts = ItemTest.getInputFluidAmountsStatic(patternStack);
+        this.outputFluidAmounts = ItemTest.getOutputFluidAmountsStatic(patternStack);
+        this.inputGases = ItemTest.getInputGasesStatic(patternStack);
+        this.outputGases = ItemTest.getOutputGasesStatic(patternStack);
+        this.inputGasAmounts = ItemTest.getInputGasAmountsStatic(patternStack);
+        this.outputGasAmounts = ItemTest.getOutputGasAmountsStatic(patternStack);
+        this.inputGasItems = ItemTest.getInputGasItemsStatic(patternStack);
+        this.outputGasItems = ItemTest.getOutputGasItemsStatic(patternStack);
+        this.inputOreName = this.inputOreNames.isEmpty() ? "" : this.inputOreNames.get(0);
+        this.outputOreName = this.outputOreNames.isEmpty() ? "" : this.outputOreNames.get(0);
         this.displayName = ItemTest.getEncodedItemNameStatic(patternStack);
         this.inputCount = ItemTest.getInputCountStatic(patternStack);
         this.outputCount = ItemTest.getOutputCountStatic(patternStack);
-        this.isVirtual = patternStack.hasTagCompound() && patternStack.getTagCompound().hasKey("VirtualInputOreName");
-        
-        // 初始化缓存
-        if (this.isVirtual) {
-            // 虚拟样板：使用明确指定的输入输出
-            List<ItemStack> inputItems = OreDictionary.getOres(inputOreName);
-            this.cachedInput = (!inputItems.isEmpty()) ? inputItems.get(0).copy() : ItemStack.EMPTY;
-            if (!this.cachedInput.isEmpty()) {
-                this.cachedInput.setCount(this.inputCount);
-            }
-            
-            List<ItemStack> outputItems = OreDictionary.getOres(outputOreName);
-            this.cachedOutput = (!outputItems.isEmpty()) ? outputItems.get(0).copy() : ItemStack.EMPTY;
-            if (!this.cachedOutput.isEmpty()) {
-                this.cachedOutput.setCount(this.outputCount);
-            }
-        } else {
-            // 非虚拟（通配符）样板：使用配方中的第一个材料
-            // 对于通配符，先直接从矿物辞典按 ingot* -> plate* 规则获取第一个
-            List<String[]> recipes = getWildcardRecipes();
-            if (!recipes.isEmpty()) {
-                String[] firstRecipe = recipes.get(0);
-                List<ItemStack> inputItems = OreDictionary.getOres(firstRecipe[0]);
-                this.cachedInput = (!inputItems.isEmpty()) ? inputItems.get(0).copy() : ItemStack.EMPTY;
-                if (!this.cachedInput.isEmpty()) {
-                    this.cachedInput.setCount(this.inputCount);
-                }
-                
-                List<ItemStack> outputItems = OreDictionary.getOres(firstRecipe[1]);
-                this.cachedOutput = (!outputItems.isEmpty()) ? outputItems.get(0).copy() : ItemStack.EMPTY;
-                if (!this.cachedOutput.isEmpty()) {
-                    this.cachedOutput.setCount(this.outputCount);
-                }
-            } else {
-                this.cachedInput = ItemStack.EMPTY;
-                this.cachedOutput = ItemStack.EMPTY;
-            }
-        }
+        this.isVirtual = patternStack.hasTagCompound() &&
+            (patternStack.getTagCompound().hasKey("VirtualInputOreNames") ||
+             patternStack.getTagCompound().hasKey("VirtualInputOreName"));
     }
 
     /**
@@ -85,17 +86,30 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
      */
     public SmartPatternDetails(ItemStack patternStack, String specificInputOre, String specificOutputOre, String specificDisplayName) {
         this.patternStack = patternStack;
+        this.inputOreNames = new ArrayList<>();
+        this.outputOreNames = new ArrayList<>();
+        this.inputCounts = ItemTest.getInputCountsStatic(patternStack);
+        this.outputCounts = ItemTest.getOutputCountsStatic(patternStack);
+        // 虚拟样板从原样板复制流体
+        this.inputFluids = ItemTest.getInputFluidsStatic(patternStack);
+        this.outputFluids = ItemTest.getOutputFluidsStatic(patternStack);
+        this.inputFluidAmounts = ItemTest.getInputFluidAmountsStatic(patternStack);
+        this.outputFluidAmounts = ItemTest.getOutputFluidAmountsStatic(patternStack);
+        // 虚拟样板从原样板复制气体
+        this.inputGases = ItemTest.getInputGasesStatic(patternStack);
+        this.outputGases = ItemTest.getOutputGasesStatic(patternStack);
+        this.inputGasAmounts = ItemTest.getInputGasAmountsStatic(patternStack);
+        this.outputGasAmounts = ItemTest.getOutputGasAmountsStatic(patternStack);
+        this.inputGasItems = ItemTest.getInputGasItemsStatic(patternStack);
+        this.outputGasItems = ItemTest.getOutputGasItemsStatic(patternStack);
+        this.inputOreNames.add(specificInputOre);
+        this.outputOreNames.add(specificOutputOre);
         this.inputOreName = specificInputOre;
         this.outputOreName = specificOutputOre;
         this.displayName = specificDisplayName;
         this.inputCount = ItemTest.getInputCountStatic(patternStack);
         this.outputCount = ItemTest.getOutputCountStatic(patternStack);
         this.isVirtual = true;
-        
-        // 不缓存物品，让getInputs()和getOutputs()动态从矿物辞典获取
-        // 这样可以支持矿物辞典中的任何变体
-        this.cachedInput = null;
-        this.cachedOutput = null;
     }
 
     @Override
@@ -105,35 +119,13 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
 
     @Override
     public boolean isValidItemForSlot(int slot, ItemStack itemStack, World world) {
-        if (slot == 0) {
-            if (itemStack == null || itemStack.isEmpty()) return false;
-
-            // 虚拟样板：只验证是否匹配缓存的具体输入物品
-            if (isVirtual) {
-                if (cachedInput == null || cachedInput.isEmpty()) return false;
-                int[] oreIDs = OreDictionary.getOreIDs(itemStack);
-                for (int oreID : oreIDs) {
-                    if (OreDictionary.getOreName(oreID).equals(inputOreName)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            // 通配符样板：接受所有匹配类别的材料
-            int[] oreIDs = OreDictionary.getOreIDs(itemStack);
-            List<String[]> categoryRecipes = getCategoryRecipes();
-
-            for (int oreID : oreIDs) {
-                String oreName = OreDictionary.getOreName(oreID);
-                for (String[] recipe : categoryRecipes) {
-                    if (recipe[0].equals(oreName)) {
-                        return true;
-                    }
-                }
-            }
+        if (itemStack == null || itemStack.isEmpty()) {
+            return false;
         }
-        return false;
+        if (slot < 0 || slot >= inputOreNames.size()) {
+            return false;
+        }
+        return matchesOrePattern(itemStack, inputOreNames.get(slot));
     }
 
     @Override
@@ -143,67 +135,32 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
 
     @Override
     public IAEItemStack[] getInputs() {
-        if (isVirtual) {
-            // 虚拟样板：动态从矿物辞典获取，支持矿物辞典的任何变体
-            List<ItemStack> inputItems = OreDictionary.getOres(inputOreName);
-            if (!inputItems.isEmpty()) {
-                ItemStack input = inputItems.get(0).copy();
-                input.setCount(this.inputCount);
-                return new IAEItemStack[]{AEItemStack.fromItemStack(input)};
-            }
+        List<ItemStack> inputs = buildStacksForOreList(inputOreNames, inputCounts, isVirtual);
+        List<IAEItemStack> resultList = new ArrayList<>();
+        for (ItemStack stack : inputs) {
+            resultList.add(AEItemStack.fromItemStack(stack));
+        }
+        resultList.addAll(buildFluidAeStacks(inputFluids, inputFluidAmounts));
+        resultList.addAll(buildGasItemAeStacks(inputGasItems, inputGases, inputGasAmounts));
+        if (resultList.isEmpty()) {
             return new IAEItemStack[0];
         }
-        
-        // 通配符样板：只返回第一个（ASM Transformer会在addToCraftingList时展开为19个虚拟样板）
-        List<String[]> categoryRecipes = getCategoryRecipes();
-        if (!categoryRecipes.isEmpty()) {
-            String[] firstRecipe = categoryRecipes.get(0);
-            List<ItemStack> firstInputItems = OreDictionary.getOres(firstRecipe[0]);
-            if (!firstInputItems.isEmpty()) {
-                ItemStack input = firstInputItems.get(0).copy();
-                input.setCount(this.inputCount);
-                return new IAEItemStack[]{AEItemStack.fromItemStack(input)};
-            }
-        }
-        return new IAEItemStack[0];
+        return resultList.toArray(new IAEItemStack[0]);
     }
 
     @Override
     public IAEItemStack[] getCondensedInputs() {
-        if (isVirtual) {
-            return getInputs();
-        }
-        // 通配符样板：只返回第一个用于显示（避免界面混乱）
-        List<String[]> categoryRecipes = getCategoryRecipes();
-        if (!categoryRecipes.isEmpty()) {
-            String[] firstRecipe = categoryRecipes.get(0);
-            List<ItemStack> firstInputItems = OreDictionary.getOres(firstRecipe[0]);
-            if (!firstInputItems.isEmpty()) {
-                ItemStack input = firstInputItems.get(0).copy();
-                input.setCount(this.inputCount);
-                return new IAEItemStack[]{AEItemStack.fromItemStack(input)};
-            }
-        }
-        return new IAEItemStack[0];
+        // 对于多输入样板，返回所有输入而不是只返回第一个
+        // AE2UEL可能使用这个方法来提取需要的物品
+        IAEItemStack[] inputs = getInputs();
+        return inputs;
     }
 
     @Override
     public IAEItemStack[] getCondensedOutputs() {
-        if (isVirtual) {
-            return getOutputs();
-        }
-        // 通配符样板：只返回第一个用于显示（避免界面混乱）
-        List<String[]> categoryRecipes = getCategoryRecipes();
-        if (!categoryRecipes.isEmpty()) {
-            String[] firstRecipe = categoryRecipes.get(0);
-            List<ItemStack> firstOutputItems = OreDictionary.getOres(firstRecipe[1]);
-            if (!firstOutputItems.isEmpty()) {
-                ItemStack output = firstOutputItems.get(0).copy();
-                output.setCount(this.outputCount);
-                return new IAEItemStack[]{AEItemStack.fromItemStack(output)};
-            }
-        }
-        return new IAEItemStack[0];
+        // 对于多输出样板，返回所有输出而不是只返回第一个
+        IAEItemStack[] outputs = getOutputs();
+        return outputs;
     }
 
     @Override
@@ -214,29 +171,131 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
 
     @Override
     public IAEItemStack[] getOutputs() {
-        if (isVirtual) {
-            // 虚拟样板：动态从矿物辞典获取，支持矿物辞典的任何变体
-            List<ItemStack> outputItems = OreDictionary.getOres(outputOreName);
-            if (!outputItems.isEmpty()) {
-                ItemStack output = outputItems.get(0).copy();
-                output.setCount(this.outputCount);
-                return new IAEItemStack[]{AEItemStack.fromItemStack(output)};
-            }
+        List<ItemStack> outputs = buildStacksForOreList(outputOreNames, outputCounts, isVirtual);
+        List<IAEItemStack> resultList = new ArrayList<>();
+        for (ItemStack stack : outputs) {
+            resultList.add(AEItemStack.fromItemStack(stack));
+        }
+        resultList.addAll(buildFluidAeStacks(outputFluids, outputFluidAmounts));
+        resultList.addAll(buildGasItemAeStacks(outputGasItems, outputGases, outputGasAmounts));
+        if (resultList.isEmpty()) {
             return new IAEItemStack[0];
         }
-        
-        // 通配符样板：只返回第一个（ASM Transformer会在addToCraftingList时展开为19个虚拟样板）
-        List<String[]> categoryRecipes = getCategoryRecipes();
-        if (!categoryRecipes.isEmpty()) {
-            String[] firstRecipe = categoryRecipes.get(0);
-            List<ItemStack> firstOutputItems = OreDictionary.getOres(firstRecipe[1]);
-            if (!firstOutputItems.isEmpty()) {
-                ItemStack output = firstOutputItems.get(0).copy();
-                output.setCount(this.outputCount);
-                return new IAEItemStack[]{AEItemStack.fromItemStack(output)};
+        return resultList.toArray(new IAEItemStack[0]);
+    }
+
+    private List<IAEItemStack> buildGasItemAeStacks(List<ItemStack> gasItems, List<String> gasNames, List<Integer> gasAmounts) {
+        List<IAEItemStack> result = new ArrayList<>();
+        if (gasNames == null || gasNames.isEmpty()) {
+            return result;
+        }
+        for (int i = 0; i < gasNames.size(); i++) {
+            String gasName = gasNames.get(i);
+            if (gasName == null || gasName.isEmpty()) {
+                continue;
+            }
+            int amount = (gasAmounts != null && i < gasAmounts.size()) ? gasAmounts.get(i) : 0;
+            if (amount <= 0) {
+                continue;
+            }
+            IAEItemStack aeStack = createGasAeStack(gasName, amount);
+            if (aeStack != null) {
+                result.add(aeStack);
             }
         }
-        return new IAEItemStack[0];
+        return result;
+    }
+
+    private static void initGasHelper() {
+        if (gasHelperReady) {
+            return;
+        }
+        gasHelperReady = true;
+        try {
+            Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+            cachedGasStackCtor = gasStackClass.getConstructor(Class.forName("mekanism.api.gas.Gas"), int.class);
+        } catch (Exception e) {
+            cachedGasStackCtor = null;
+        }
+        try {
+            Class<?> gasRegistryClass = Class.forName("mekanism.api.gas.GasRegistry");
+            cachedGasRegistryGetGas = gasRegistryClass.getMethod("getGas", String.class);
+        } catch (Exception e) {
+            cachedGasRegistryGetGas = null;
+        }
+        try {
+            Class<?> fakeGases = Class.forName("com.glodblock.github.integration.mek.FakeGases");
+            cachedFakeGasPack = fakeGases.getMethod("packGas2AEDrops", Class.forName("mekanism.api.gas.GasStack"));
+        } catch (Exception e) {
+            cachedFakeGasPack = null;
+        }
+    }
+
+    private static Object createGasStack(String gasName, int amount) {
+        initGasHelper();
+        if (cachedGasRegistryGetGas == null || cachedGasStackCtor == null) {
+            return null;
+        }
+        try {
+            Object gas = cachedGasRegistryGetGas.invoke(null, gasName);
+            if (gas == null) {
+                return null;
+            }
+            return cachedGasStackCtor.newInstance(gas, Math.max(1, amount));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static IAEItemStack createGasAeStack(String gasName, int amount) {
+        Object gasStack = createGasStack(gasName, amount);
+        if (gasStack == null || cachedFakeGasPack == null) {
+            return null;
+        }
+        try {
+            Object packed = cachedFakeGasPack.invoke(null, gasStack);
+            if (packed instanceof IAEItemStack) {
+                IAEItemStack aeStack = (IAEItemStack) packed;
+                aeStack.setStackSize(amount);
+                return aeStack;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    private List<IAEItemStack> buildFluidAeStacks(List<String> fluids, List<Integer> amounts) {
+        List<IAEItemStack> result = new ArrayList<>();
+        if (fluids == null || fluids.isEmpty()) {
+            return result;
+        }
+        try {
+            Class<?> fakeFluids = Class.forName("com.glodblock.github.common.item.fake.FakeFluids");
+            java.lang.reflect.Method packMethod = fakeFluids.getMethod("packFluid2AEDrops", FluidStack.class);
+            for (int i = 0; i < fluids.size(); i++) {
+                String fluidName = fluids.get(i);
+                if (fluidName == null || fluidName.isEmpty()) {
+                    continue;
+                }
+                int amount = i < amounts.size() ? amounts.get(i) : 0;
+                if (amount <= 0) {
+                    continue;
+                }
+                net.minecraftforge.fluids.Fluid fluid = FluidRegistry.getFluid(fluidName);
+                if (fluid == null) {
+                    continue;
+                }
+                FluidStack fluidStack = new FluidStack(fluid, amount);
+                Object packed = packMethod.invoke(null, fluidStack);
+                if (packed instanceof IAEItemStack) {
+                    result.add((IAEItemStack) packed);
+                }
+            }
+        } catch (Exception e) {
+            // AE2FC not present or reflection failed; ignore fluid entries.
+        }
+        return result;
     }
 
     @Override
@@ -254,59 +313,27 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
 
     @Override
     public ItemStack getOutput(InventoryCrafting inventory, World world) {
-        if (isVirtual) {
-            // 虚拟样板：优先从输入物品推导出材料名，再获取对应输出
-            // 这样可以确保输出是正确对应的材料
-            if (inventory.getSizeInventory() > 0) {
-                ItemStack input = inventory.getStackInSlot(0);
-                if (!input.isEmpty()) {
-                    // 从输入物品推导材料
-                    int[] oreIDs = OreDictionary.getOreIDs(input);
-                    for (int oreID : oreIDs) {
-                        String inputOre = OreDictionary.getOreName(oreID);
-                        if (inputOre.equals(inputOreName)) {
-                            // 找到匹配的输入，返回对应的输出
-                            List<ItemStack> outputItems = OreDictionary.getOres(outputOreName);
-                            if (!outputItems.isEmpty()) {
-                                ItemStack result = outputItems.get(0).copy();
-                                result.setCount(this.outputCount);
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // 如果没有输入库存，就直接从矿物辞典获取
-            List<ItemStack> outputItems = OreDictionary.getOres(outputOreName);
-            if (!outputItems.isEmpty()) {
-                ItemStack result = outputItems.get(0).copy();
-                result.setCount(this.outputCount);
-                return result;
-            }
+        if (outputOreNames.isEmpty()) {
             return ItemStack.EMPTY;
         }
-        
-        // 通配符样板：根据实际输入物品动态返回对应的输出
-        if (inventory.getSizeInventory() > 0) {
-            ItemStack input = inventory.getStackInSlot(0);
-            if (!input.isEmpty()) {
-                int[] oreIDs = OreDictionary.getOreIDs(input);
-                for (int oreID : oreIDs) {
-                    String inputOreName = OreDictionary.getOreName(oreID);
-                    List<String[]> categoryRecipes = getCategoryRecipes();
-                    for (String[] recipe : categoryRecipes) {
-                        if (recipe[0].equals(inputOreName)) {
-                            List<ItemStack> outputItems = OreDictionary.getOres(recipe[1]);
-                            if (!outputItems.isEmpty()) {
-                                ItemStack result = outputItems.get(0).copy();
-                                result.setCount(this.outputCount);
-                                return result;
-                            }
-                        }
-                    }
-                }
-            }
+
+        if (isVirtual) {
+            List<ItemStack> outputs = buildStacksForOreList(outputOreNames, outputCounts, true);
+            return outputs.isEmpty() ? ItemStack.EMPTY : outputs.get(0);
+        }
+
+        String material = deriveMaterialFromInventory(inventory);
+        if (material == null) {
+            return ItemStack.EMPTY;
+        }
+
+        String outputOre = replaceWildcard(outputOreNames.get(0), material);
+        List<ItemStack> outputItems = OreDictionary.getOres(outputOre);
+        if (!outputItems.isEmpty()) {
+            ItemStack result = outputItems.get(0).copy();
+            int count = outputCounts.isEmpty() ? 1 : outputCounts.get(0);
+            result.setCount(count);
+            return result;
         }
         return ItemStack.EMPTY;
     }
@@ -322,7 +349,12 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
     }
 
     public String getOreName() {
-        return inputOreName + "→" + outputOreName;
+        if (inputOreNames.isEmpty() && outputOreNames.isEmpty()) {
+            return "";
+        }
+        String inputName = inputOreNames.isEmpty() ? "" : inputOreNames.get(0);
+        String outputName = outputOreNames.isEmpty() ? "" : outputOreNames.get(0);
+        return inputName + "→" + outputName;
     }
 
     public String getDisplayName() {
@@ -334,7 +366,17 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
     }
 
     public boolean isWildcardPattern() {
-        return inputOreName.contains("*") || outputOreName.contains("*");
+        for (String ore : inputOreNames) {
+            if (ore.contains("*")) {
+                return true;
+            }
+        }
+        for (String ore : outputOreNames) {
+            if (ore.contains("*")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -345,43 +387,44 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
         List<SmartPatternDetails> virtualPatterns = new ArrayList<>();
         
         // 只有通配符样板需要展开
-        if (!inputOreName.contains("*") && !outputOreName.contains("*")) {
+        if (!isWildcardPattern()) {
             virtualPatterns.add(this);
             return virtualPatterns;
         }
 
-        // 获取所有通配符配方
-        List<String[]> recipes = getWildcardRecipes();
-        
-        // 为每个配方创建一个虚拟样板
-        for (String[] recipe : recipes) {
+        List<String> materials = getWildcardMaterials();
+        for (String material : materials) {
+            List<String> specificInputs = new ArrayList<>();
+            List<String> specificOutputs = new ArrayList<>();
+
+            for (String ore : inputOreNames) {
+                specificInputs.add(replaceWildcard(ore, material));
+            }
+            for (String ore : outputOreNames) {
+                specificOutputs.add(replaceWildcard(ore, material));
+            }
+
             ItemStack virtualStack = patternStack.copy();
-            // 创建全新的NBT标签，避免共享引用
             NBTTagCompound tag = new NBTTagCompound();
-            // 复制原有NBT（如果有）
             if (virtualStack.hasTagCompound()) {
                 tag = virtualStack.getTagCompound().copy();
             }
-            tag.setString("VirtualInputOreName", recipe[0]);
-            tag.setString("VirtualOutputOreName", recipe[1]);
-            tag.setString("VirtualDisplayName", recipe[2]);
-            // 保留数量信息
-            if (patternStack.hasTagCompound()) {
-                if (patternStack.getTagCompound().hasKey("InputCount")) {
-                    tag.setInteger("InputCount", patternStack.getTagCompound().getInteger("InputCount"));
-                }
-                if (patternStack.getTagCompound().hasKey("OutputCount")) {
-                    tag.setInteger("OutputCount", patternStack.getTagCompound().getInteger("OutputCount"));
-                }
+
+            NBTTagList inputOreList = new NBTTagList();
+            for (String ore : specificInputs) {
+                inputOreList.appendTag(new NBTTagString(ore));
             }
+            NBTTagList outputOreList = new NBTTagList();
+            for (String ore : specificOutputs) {
+                outputOreList.appendTag(new NBTTagString(ore));
+            }
+
+            tag.setTag("VirtualInputOreNames", inputOreList);
+            tag.setTag("VirtualOutputOreNames", outputOreList);
+            tag.setString("VirtualDisplayName", material + " " + displayName);
             virtualStack.setTagCompound(tag);
 
-            SmartPatternDetails virtualPattern = new SmartPatternDetails(
-                virtualStack,
-                recipe[0],  // 具体输入矿物名（如 ingotIron）
-                recipe[1],  // 具体输出矿物名（如 plateIron）
-                recipe[2]   // 显示名称
-            );
+            SmartPatternDetails virtualPattern = new SmartPatternDetails(virtualStack);
             virtualPatterns.add(virtualPattern);
         }
         
@@ -396,17 +439,19 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
 
         // 如果是虚拟样板（具体材料），直接返回该材料的配方
         if (isVirtual) {
-            List<ItemStack> inputItems = OreDictionary.getOres(inputOreName);
-            List<ItemStack> outputItems = OreDictionary.getOres(outputOreName);
-            if (!inputItems.isEmpty() && !outputItems.isEmpty()) {
-                recipes.add(new String[]{inputOreName, outputOreName, displayName});
+            if (!inputOreNames.isEmpty() && !outputOreNames.isEmpty()) {
+                recipes.add(new String[]{inputOreNames.get(0), outputOreNames.get(0), displayName});
             }
             return recipes;
         }
 
         // 空值检查
-        if (inputOreName == null || outputOreName == null) {
+        if (inputOreNames.isEmpty() || outputOreNames.isEmpty()) {
             return new ArrayList<>();
+        }
+
+        if (inputOreNames.size() != 1 || outputOreNames.size() != 1) {
+            return getWildcardRecipes();
         }
 
         // 如果是通配符形式，使用通配符逻辑
@@ -445,7 +490,178 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
      * 处理通配符形式的配方
      */
     private List<String[]> getWildcardRecipes() {
-        return OreDictRecipeCache.getRecipes(inputOreName, outputOreName);
+        List<String[]> recipes = new ArrayList<>();
+        if (inputOreNames.isEmpty() || outputOreNames.isEmpty()) {
+            return recipes;
+        }
+
+        String inputWildcard = inputOreNames.get(0);
+        String outputWildcard = outputOreNames.get(0);
+        List<String> materials = getWildcardMaterials();
+        for (String material : materials) {
+            String inputOre = replaceWildcard(inputWildcard, material);
+            String outputOre = replaceWildcard(outputWildcard, material);
+            if (!OreDictionary.doesOreNameExist(inputOre) || !OreDictionary.doesOreNameExist(outputOre)) {
+                continue;
+            }
+            List<ItemStack> inputItems = OreDictionary.getOres(inputOre);
+            List<ItemStack> outputItems = OreDictionary.getOres(outputOre);
+            if (!inputItems.isEmpty() && !outputItems.isEmpty()) {
+                String displayName = inputItems.get(0).getDisplayName() + " → " + outputItems.get(0).getDisplayName();
+                recipes.add(new String[]{inputOre, outputOre, displayName});
+            }
+        }
+        return recipes;
+    }
+
+    private List<ItemStack> buildStacksForOreList(List<String> oreNames, List<Integer> counts, boolean virtual) {
+        List<ItemStack> stacks = new ArrayList<>();
+        if (oreNames.isEmpty()) {
+            return stacks;
+        }
+
+        String material = null;
+        if (!virtual && isWildcardPattern()) {
+            List<String> materials = getWildcardMaterials();
+            if (materials.isEmpty()) {
+                return stacks;
+            }
+            material = materials.get(0);
+        }
+
+        for (int i = 0; i < oreNames.size(); i++) {
+            String oreName = oreNames.get(i);
+            if (material != null) {
+                oreName = replaceWildcard(oreName, material);
+            }
+            List<ItemStack> items = OreDictionary.getOres(oreName);
+            if (items.isEmpty()) {
+                continue;
+            }
+            ItemStack stack = items.get(0).copy();
+            int count = i < counts.size() ? counts.get(i) : 1;
+            stack.setCount(count);
+            stacks.add(stack);
+        }
+
+        return stacks;
+    }
+
+    private String replaceWildcard(String oreName, String material) {
+        if (oreName.contains("*")) {
+            return oreName.replace("*", material);
+        }
+        return oreName;
+    }
+
+    private List<String> getWildcardMaterials() {
+        List<String> materials = new ArrayList<>();
+        if (inputOreNames.isEmpty() || outputOreNames.isEmpty()) {
+            return materials;
+        }
+
+        String inputWildcard = inputOreNames.get(0);
+        String outputWildcard = outputOreNames.get(0);
+        List<String[]> recipes = OreDictRecipeCache.getRecipes(inputWildcard, outputWildcard);
+        for (String[] recipe : recipes) {
+            String material = extractMaterial(recipe[0]);
+            if (material == null) {
+                continue;
+            }
+            if (isMaterialValidForAll(material)) {
+                materials.add(material);
+            }
+        }
+
+        return materials;
+    }
+
+    private boolean isMaterialValidForAll(String material) {
+        for (String ore : inputOreNames) {
+            String specific = replaceWildcard(ore, material);
+            if (!OreDictionary.doesOreNameExist(specific) || OreDictionary.getOres(specific).isEmpty()) {
+                return false;
+            }
+        }
+        for (String ore : outputOreNames) {
+            String specific = replaceWildcard(ore, material);
+            if (!OreDictionary.doesOreNameExist(specific) || OreDictionary.getOres(specific).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String deriveMaterialFromInventory(InventoryCrafting inventory) {
+        String material = null;
+        for (int i = 0; i < inventory.getSizeInventory(); i++) {
+            ItemStack stack = inventory.getStackInSlot(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            int[] oreIDs = OreDictionary.getOreIDs(stack);
+            for (int oreID : oreIDs) {
+                String oreName = OreDictionary.getOreName(oreID);
+                String match = matchMaterialForOre(oreName);
+                if (match == null) {
+                    continue;
+                }
+                if (material == null) {
+                    material = match;
+                } else if (!material.equals(match)) {
+                    return null;
+                }
+            }
+        }
+        return material;
+    }
+
+    private String matchMaterialForOre(String oreName) {
+        for (String pattern : inputOreNames) {
+            if (pattern.contains("*")) {
+                String base = pattern.replace("*", "");
+                if (oreName.startsWith(base)) {
+                    return extractMaterial(oreName);
+                }
+            } else if (pattern.equals(oreName)) {
+                return extractMaterial(oreName);
+            }
+        }
+        return null;
+    }
+
+    private boolean matchesAnyInputOre(ItemStack itemStack, List<String> oreNames) {
+        int[] oreIDs = OreDictionary.getOreIDs(itemStack);
+        for (int oreID : oreIDs) {
+            String oreName = OreDictionary.getOreName(oreID);
+            for (String pattern : oreNames) {
+                if (pattern.contains("*")) {
+                    String base = pattern.replace("*", "");
+                    if (oreName.startsWith(base)) {
+                        return true;
+                    }
+                } else if (pattern.equals(oreName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean matchesOrePattern(ItemStack itemStack, String pattern) {
+        int[] oreIDs = OreDictionary.getOreIDs(itemStack);
+        for (int oreID : oreIDs) {
+            String oreName = OreDictionary.getOreName(oreID);
+            if (pattern.contains("*")) {
+                String base = pattern.replace("*", "");
+                if (oreName.startsWith(base)) {
+                    return true;
+                }
+            } else if (pattern.equals(oreName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -517,5 +733,102 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
         }
 
         return true;
+    }
+
+    /**
+     * 流体相关的getter方法
+     */
+    public List<String> getInputFluids() {
+        return inputFluids;
+    }
+
+    public List<String> getOutputFluids() {
+        return outputFluids;
+    }
+
+    public List<Integer> getInputFluidAmounts() {
+        return inputFluidAmounts;
+    }
+
+    public List<Integer> getOutputFluidAmounts() {
+        return outputFluidAmounts;
+    }
+
+    public List<String> getInputGases() {
+        return inputGases;
+    }
+
+    public List<String> getOutputGases() {
+        return outputGases;
+    }
+
+    public List<Integer> getInputGasAmounts() {
+        return inputGasAmounts;
+    }
+
+    public List<Integer> getOutputGasAmounts() {
+        return outputGasAmounts;
+    }
+
+
+    /**
+     * 检查样板是否包含流体
+     */
+    public boolean hasInputFluids() {
+        return !inputFluids.isEmpty();
+    }
+
+    public boolean hasOutputFluids() {
+        return !outputFluids.isEmpty();
+    }
+
+    public boolean hasInputGases() {
+        return !inputGases.isEmpty();
+    }
+
+    public boolean hasOutputGases() {
+        return !outputGases.isEmpty();
+    }
+
+
+    /**
+     * 获取总的输入凭证信息（包含物品和流体）
+     * 用于显示在GUI中
+     */
+    public List<String> getAllInputDescriptions() {
+        List<String> descriptions = new ArrayList<>();
+        for (int i = 0; i < inputOreNames.size(); i++) {
+            int count = i < inputCounts.size() ? inputCounts.get(i) : 1;
+            descriptions.add(inputOreNames.get(i) + " ×" + count);
+        }
+        for (int i = 0; i < inputFluids.size(); i++) {
+            int amount = i < inputFluidAmounts.size() ? inputFluidAmounts.get(i) : 0;
+            descriptions.add(inputFluids.get(i) + " ×" + amount + "mB");
+        }
+        for (int i = 0; i < inputGases.size(); i++) {
+            int amount = i < inputGasAmounts.size() ? inputGasAmounts.get(i) : 0;
+            descriptions.add(inputGases.get(i) + " ×" + amount + "mB");
+        }
+        return descriptions;
+    }
+
+    /**
+     * 获取总的输出凭证信息（包含物品和流体）
+     */
+    public List<String> getAllOutputDescriptions() {
+        List<String> descriptions = new ArrayList<>();
+        for (int i = 0; i < outputOreNames.size(); i++) {
+            int count = i < outputCounts.size() ? outputCounts.get(i) : 1;
+            descriptions.add(outputOreNames.get(i) + " ×" + count);
+        }
+        for (int i = 0; i < outputFluids.size(); i++) {
+            int amount = i < outputFluidAmounts.size() ? outputFluidAmounts.get(i) : 0;
+            descriptions.add(outputFluids.get(i) + " ×" + amount + "mB");
+        }
+        for (int i = 0; i < outputGases.size(); i++) {
+            int amount = i < outputGasAmounts.size() ? outputGasAmounts.get(i) : 0;
+            descriptions.add(outputGases.get(i) + " ×" + amount + "mB");
+        }
+        return descriptions;
     }
 }

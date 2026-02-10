@@ -48,46 +48,9 @@ public class PatternInterceptor {
         if (!ItemTest.hasEncodedItemStatic(stack)) {
             return false;
         }
-        
-        String inputOre = ItemTest.getInputOreNameStatic(stack);
-        String outputOre = ItemTest.getOutputOreNameStatic(stack);
-        
-        // 检查是否是虚拟样板（已展开的）
-        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("VirtualInputOreName")) {
-            return false;
-        }
-        
-        // 检查是否是通配符样板
-        if (!inputOre.contains("*") && !outputOre.contains("*")) {
-            return false;
-        }
-        
-        try {
-            // 获取craftingList
-            Set<ICraftingPatternDetails> craftingList = (Set<ICraftingPatternDetails>) craftingListField.get(duality);
-            
-            if (craftingList == null) {
-                System.err.println("[PatternInterceptor] craftingList为null");
-                return false;
-            }
-            
-            // 创建主样板并展开为19个虚拟样板
-            SmartPatternDetails mainPattern = new SmartPatternDetails(stack);
-            List<SmartPatternDetails> virtualPatterns = mainPattern.expandToVirtualPatterns();
-            
-            // 将所有虚拟样板添加到craftingList
-            for (SmartPatternDetails virtualPattern : virtualPatterns) {
-                craftingList.add(virtualPattern);
-            }
-            
-            // 返回true表示已拦截，不需要继续原始逻辑
-            return true;
-            
-        } catch (Exception e) {
-            System.err.println("[PatternInterceptor] 展开失败: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
+
+        // Block ItemTest patterns from being added to the interface crafting list.
+        return true;
     }
     
     /**

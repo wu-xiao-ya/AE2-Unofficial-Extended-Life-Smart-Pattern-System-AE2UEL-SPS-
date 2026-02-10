@@ -6,18 +6,53 @@ import net.minecraft.inventory.Container;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.oredict.OreDictionary;
+import net.minecraft.util.NonNullList;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Method;
 
 public class ContainerPatternEditor extends Container {
 
+    private static final int INPUT_SLOTS = 9;
+    private static final int OUTPUT_SLOTS = 9;
+    private static final int TOTAL_PATTERN_SLOTS = INPUT_SLOTS + OUTPUT_SLOTS;
+    private static final int DEFAULT_FLUID_AMOUNT = 1000;
+    private static final int DEFAULT_GAS_AMOUNT = 1000;
+
+    private static Method cachedFakeFluidCheck;
+    private static Method cachedFakeFluidDisplay;
+    private static Method cachedFakeItemGetStack;
+    private static boolean fakeFluidMethodsReady = false;
+
+    private static Method cachedFakeGasCheck;
+    private static Method cachedFakeGasDisplay;
+    private static boolean fakeGasMethodsReady = false;
+
+    private static Class<?> cachedGasItemClass;
+    private static Method cachedGasItemGetGas;
+    private static Method cachedGasStackGetGas;
+    private static Method cachedGasGetName;
+    private static Method cachedGasStackGetAmount;
+    private static java.lang.reflect.Field cachedGasStackAmountField;
+    private static Class<?> cachedDummyGasItemClass;
+    private static Method cachedDummyGasSetGas;
+    private static Method cachedDummyGasGetGas;
+    private static Method cachedGasRegistryGetGas;
+    private static java.lang.reflect.Constructor<?> cachedGasStackCtor;
+    private static boolean gasMethodsReady = false;
+
     private final EntityPlayer player;
     private final ItemStack patternStack;
-    private final PatternInputInventory inputInventory = new PatternInputInventory();
-    private final PatternOutputInventory outputInventory = new PatternOutputInventory();
-    private int selectedRecipeType = 0; // ?????????
+    private final PatternInputInventory inputInventory = new PatternInputInventory(INPUT_SLOTS);
+    private final PatternOutputInventory outputInventory = new PatternOutputInventory(OUTPUT_SLOTS);
+    private int selectedRecipeType = 0; // ????????
 
     public ContainerPatternEditor(EntityPlayer player) {
         this.player = player;
@@ -41,11 +76,25 @@ public class ContainerPatternEditor extends Container {
             return;
         }
 
-        // ?????? (????????)
-        this.addSlotToContainer(new SlotPatternInput(this, 0, 44, 35));
+        // ?????? (9?????)
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                int slotIndex = row * 3 + col;
+                int xPos = 26 + col * 18;
+                int yPos = 35 + row * 18;
+                this.addSlotToContainer(new SlotPatternInput(this, slotIndex, xPos, yPos));
+            }
+        }
 
-        // ?????? (????????)
-        this.addSlotToContainer(new SlotPatternOutput(this, 0, 116, 35));
+        // ?????? (9?????)
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                int slotIndex = row * 3 + col;
+                int xPos = 98 + col * 18;
+                int yPos = 35 + row * 18;
+                this.addSlotToContainer(new SlotPatternOutput(this, slotIndex, xPos, yPos));
+            }
+        }
 
         // ?????? (3?x9?)
         for (int i = 0; i < 3; ++i) {
@@ -92,18 +141,38 @@ public class ContainerPatternEditor extends Container {
      * ??????
      */
     public ItemStack getInputStack() {
-        return inputInventory.getStackInSlot(0);
+        for (int i = 0; i < INPUT_SLOTS; i++) {
+            ItemStack stack = inputInventory.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public ItemStack getInputStack(int index) {
+        return inputInventory.getStackInSlot(index);
     }
 
     /**
      * ??????
      */
     public ItemStack getOutputStack() {
-        return outputInventory.getStackInSlot(0);
+        for (int i = 0; i < OUTPUT_SLOTS; i++) {
+            ItemStack stack = outputInventory.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public ItemStack getOutputStack(int index) {
+        return outputInventory.getStackInSlot(index);
     }
 
     /**
-     * ????????
+     * 获取矿物辞典名称
      */
     public String getOreName(ItemStack stack) {
         if (stack.isEmpty()) return null;
@@ -114,70 +183,19 @@ public class ContainerPatternEditor extends Container {
         return null;
     }
 
-    /**
-     * ????????
-     */
     public IInventory getDerivedInventory() {
         return new DerivedRecipeInventory();
     }
 
-    /**
-     * ???????????
-     */
     public int getSelectedRecipeType() {
         return selectedRecipeType;
     }
 
-    /**
-     * ???????????
-     */
     public void setSelectedRecipeType(int index) {
         this.selectedRecipeType = index;
-        // ????????????????
         encodeSelectedPattern();
     }
 
-    /**
-     * 设置输入数量
-     */
-    public void setInputCount(int count) {
-        if (patternStack.isEmpty() || !(patternStack.getItem() instanceof ItemTest)) {
-            return;
-        }
-        
-        ItemTest patternItem = (ItemTest) patternStack.getItem();
-        String inputOre = patternItem.getInputOreName(patternStack);
-        String outputOre = patternItem.getOutputOreName(patternStack);
-        String displayName = patternItem.getEncodedItemName(patternStack);
-        int outputCount = patternItem.getOutputCount(patternStack);
-        
-        if (inputOre != null && outputOre != null) {
-            patternItem.setEncodedItem(patternStack, inputOre, outputOre, displayName, count, outputCount);
-        }
-    }
-
-    /**
-     * 设置输出数量
-     */
-    public void setOutputCount(int count) {
-        if (patternStack.isEmpty() || !(patternStack.getItem() instanceof ItemTest)) {
-            return;
-        }
-        
-        ItemTest patternItem = (ItemTest) patternStack.getItem();
-        String inputOre = patternItem.getInputOreName(patternStack);
-        String outputOre = patternItem.getOutputOreName(patternStack);
-        String displayName = patternItem.getEncodedItemName(patternStack);
-        int inputCount = patternItem.getInputCount(patternStack);
-        
-        if (inputOre != null && outputOre != null) {
-            patternItem.setEncodedItem(patternStack, inputOre, outputOre, displayName, inputCount, count);
-        }
-    }
-
-    /**
-     * ???????????
-     */
     public List<String[]> getAvailableRecipeTypes() {
         List<String[]> recipeTypes = new ArrayList<>();
 
@@ -188,7 +206,6 @@ public class ContainerPatternEditor extends Container {
             return recipeTypes;
         }
 
-        // ????????
         List<ItemStack[]> derivedRecipes = deriveRecipes(inputStack, outputStack);
 
         for (int i = 0; i < derivedRecipes.size(); i++) {
@@ -227,8 +244,563 @@ public class ContainerPatternEditor extends Container {
         // 保留当前的数量设置
         int inputCount = patternItem.getInputCount(patternStack);
         int outputCount = patternItem.getOutputCount(patternStack);
-        patternItem.setEncodedItem(patternStack, inputOreName, outputOreName, displayName, inputCount, outputCount);
+        
+        // 提取流体信息
+        List<String> inputFluids = new ArrayList<>();
+        List<Integer> inputFluidAmounts = new ArrayList<>();
+        List<String> outputFluids = new ArrayList<>();
+        List<Integer> outputFluidAmounts = new ArrayList<>();
+        List<String> inputGases = new ArrayList<>();
+        List<Integer> inputGasAmounts = new ArrayList<>();
+        List<String> outputGases = new ArrayList<>();
+        List<Integer> outputGasAmounts = new ArrayList<>();
+        List<ItemStack> inputGasItems = new ArrayList<>();
+        List<ItemStack> outputGasItems = new ArrayList<>();
+        
+        // 从输入槽位提取流体
+        for (int i = 0; i < INPUT_SLOTS; i++) {
+            ItemStack stack = getInputStack(i);
+            if (!stack.isEmpty()) {
+                FluidInfo fluidInfo = extractFluidFromStack(stack);
+                if (fluidInfo != null && fluidInfo.fluidName != null && !fluidInfo.fluidName.isEmpty()) {
+                    inputFluids.add(fluidInfo.fluidName);
+                    inputFluidAmounts.add(fluidInfo.amount);
+                    continue;
+                }
+                GasInfo gasInfo = extractGasFromStack(stack);
+                if (gasInfo != null && gasInfo.gasName != null && !gasInfo.gasName.isEmpty()) {
+                    inputGases.add(gasInfo.gasName);
+                    inputGasAmounts.add(gasInfo.amount);
+                }
+            }
+        }
+        
+        // 从输出槽位提取流体
+        for (int i = 0; i < OUTPUT_SLOTS; i++) {
+            ItemStack stack = getOutputStack(i);
+            if (!stack.isEmpty()) {
+                FluidInfo fluidInfo = extractFluidFromStack(stack);
+                if (fluidInfo != null && fluidInfo.fluidName != null && !fluidInfo.fluidName.isEmpty()) {
+                    outputFluids.add(fluidInfo.fluidName);
+                    outputFluidAmounts.add(fluidInfo.amount);
+                    continue;
+                }
+                GasInfo gasInfo = extractGasFromStack(stack);
+                if (gasInfo != null && gasInfo.gasName != null && !gasInfo.gasName.isEmpty()) {
+                    outputGases.add(gasInfo.gasName);
+                    outputGasAmounts.add(gasInfo.amount);
+                }
+            }
+        }
+        
+        // 如果有流体，使用新的setEncodedItemWithFluids方法
+        if (!inputFluids.isEmpty() || !outputFluids.isEmpty() || !inputGases.isEmpty() || !outputGases.isEmpty()) {
+            List<String> inputOres = new ArrayList<>();
+            List<Integer> inputCounts = new ArrayList<>();
+            inputOres.add(inputOreName);
+            inputCounts.add(inputCount);
+            
+            List<String> outputOres = new ArrayList<>();
+            List<Integer> outputCounts = new ArrayList<>();
+            outputOres.add(outputOreName);
+            outputCounts.add(outputCount);
+            
+                patternItem.setEncodedItemWithFluidsAndGases(patternStack, inputOres, inputCounts, outputOres, outputCounts,
+                    inputFluids, inputFluidAmounts, outputFluids, outputFluidAmounts,
+                    inputGases, inputGasAmounts, outputGases, outputGasAmounts,
+                    inputGasItems, outputGasItems, displayName);
+        } else {
+            // 无流体，使用原有的setEncodedItem方法
+            patternItem.setEncodedItem(patternStack, inputOreName, outputOreName, displayName, inputCount, outputCount);
+        }
     }
+
+    /**
+     * 从物品堆栈中提取流体信息
+     * 支持原版桶、热力便携罐等所有Forge流体容器（1.12.2版本）
+     */
+    private FluidInfo extractFluidFromStack(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+
+        if (!isFakeFluidItem(stack)) {
+            return null;
+        }
+
+        // 优先处理假流体标记
+        FluidStack fake = getFakeFluidStack(stack);
+        if (fake != null && fake.getFluid() != null) {
+            int amount = resolveMarkerAmount(stack, fake.amount);
+            if (amount > 0) {
+                return new FluidInfo(fake.getFluid().getName(), amount);
+            }
+        }
+
+        // 如果都无法获取，返回null
+        return null;
+    }
+
+    private FluidInfo extractFluidFromContainer(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+        try {
+            FluidStack fluidStack = FluidUtil.getFluidContained(stack);
+            if (fluidStack != null && fluidStack.amount > 0 && fluidStack.getFluid() != null) {
+                return new FluidInfo(fluidStack.getFluid().getName(), fluidStack.amount);
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return null;
+    }
+
+    private GasInfo extractGasFromStack(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("TechStartGasName")) {
+            String gasName = stack.getTagCompound().getString("TechStartGasName");
+            int amount = stack.getTagCompound().getInteger("TechStartGasAmount");
+            if (gasName != null && !gasName.isEmpty()) {
+                return new GasInfo(gasName, Math.max(1, amount));
+            }
+        }
+        initFakeGasMethods();
+        if (cachedFakeGasCheck != null) {
+            try {
+                Object isFake = cachedFakeGasCheck.invoke(null, stack);
+                if (isFake instanceof Boolean && (Boolean) isFake) {
+                    Object gasStack = getFakeGasStack(stack);
+                    if (gasStack != null) {
+                        String gasName = resolveGasName(gasStack);
+                        int amount = resolveGasAmount(gasStack);
+                        if (gasName != null && !gasName.isEmpty() && amount > 0) {
+                            return new GasInfo(gasName, amount);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore and continue.
+            }
+        }
+        initGasMethods();
+        if (cachedDummyGasItemClass != null && cachedDummyGasItemClass.isInstance(stack.getItem()) && cachedDummyGasGetGas != null) {
+            try {
+                Object gasStack = cachedDummyGasGetGas.invoke(stack.getItem(), stack);
+                if (gasStack != null) {
+                    String gasName = resolveGasName(gasStack);
+                    int amount = resolveGasAmount(gasStack);
+                    if (gasName != null && !gasName.isEmpty() && amount > 0) {
+                        return new GasInfo(gasName, amount);
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore and continue.
+            }
+        }
+        return null;
+    }
+
+    private GasInfo extractGasFromContainer(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+        initGasMethods();
+        if (cachedGasItemClass == null || cachedGasItemGetGas == null) {
+            return null;
+        }
+        Object item = stack.getItem();
+        if (!cachedGasItemClass.isInstance(item)) {
+            return null;
+        }
+        try {
+            Object gasStack = cachedGasItemGetGas.invoke(item, stack);
+            if (gasStack == null) {
+                return null;
+            }
+            String gasName = resolveGasName(gasStack);
+            int amount = resolveGasAmount(gasStack);
+            if (gasName == null || gasName.isEmpty() || amount <= 0) {
+                return null;
+            }
+            return new GasInfo(gasName, amount);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private ItemStack createGasMarkerStack(ItemStack source, GasInfo gasInfo) {
+        if (source == null || source.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        if (gasInfo == null || gasInfo.gasName == null || gasInfo.gasName.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack marker = createFakeGasDisplayStack(gasInfo.gasName, gasInfo.amount);
+        if (marker.isEmpty()) {
+            marker = source.copy();
+            marker.setCount(1);
+        }
+        NBTTagCompound tag = marker.hasTagCompound() ? marker.getTagCompound() : new NBTTagCompound();
+        tag.setBoolean("TechStartGasMarker", true);
+        tag.setString("TechStartGasName", gasInfo.gasName);
+        tag.setInteger("TechStartGasAmount", Math.max(1, gasInfo.amount));
+        marker.setTagCompound(tag);
+        return marker;
+    }
+
+    private ItemStack createFakeGasDisplayStack(String gasName, int amount) {
+        initFakeGasMethods();
+        if (cachedFakeGasDisplay == null || cachedGasRegistryGetGas == null || cachedGasStackCtor == null) {
+            return ItemStack.EMPTY;
+        }
+        try {
+            Object gas = cachedGasRegistryGetGas.invoke(null, gasName);
+            if (gas == null) {
+                return ItemStack.EMPTY;
+            }
+            Object gasStack = cachedGasStackCtor.newInstance(gas, Math.max(1, amount));
+            Object result = cachedFakeGasDisplay.invoke(null, gasStack);
+            if (result instanceof ItemStack) {
+                return (ItemStack) result;
+            }
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private ItemStack createDummyGasStack(String gasName, int amount) {
+        initGasMethods();
+        if (cachedDummyGasItemClass == null || cachedDummyGasSetGas == null || cachedGasRegistryGetGas == null || cachedGasStackCtor == null) {
+            return ItemStack.EMPTY;
+        }
+        net.minecraft.item.Item dummyItem = net.minecraft.item.Item.getByNameOrId("mekeng:dummy_gas");
+        if (dummyItem == null) {
+            return ItemStack.EMPTY;
+        }
+        try {
+            Object gas = cachedGasRegistryGetGas.invoke(null, gasName);
+            if (gas == null) {
+                return ItemStack.EMPTY;
+            }
+            Object gasStack = cachedGasStackCtor.newInstance(gas, Math.max(1, amount));
+            ItemStack stack = new ItemStack(dummyItem);
+            cachedDummyGasSetGas.invoke(dummyItem, stack, gasStack);
+            return stack;
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    private ItemStack stripGasMarkerTag(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) {
+            return stack;
+        }
+        NBTTagCompound tag = stack.getTagCompound();
+        tag.removeTag("TechStartGasMarker");
+        tag.removeTag("TechStartGasName");
+        tag.removeTag("TechStartGasAmount");
+        if (tag.isEmpty()) {
+            stack.setTagCompound(null);
+        } else {
+            stack.setTagCompound(tag);
+        }
+        return stack;
+    }
+
+    private String resolveGasName(Object gasStack) {
+        if (cachedGasStackGetGas == null || cachedGasGetName == null) {
+            return null;
+        }
+        try {
+            Object gas = cachedGasStackGetGas.invoke(gasStack);
+            if (gas == null) {
+                return null;
+            }
+            Object name = cachedGasGetName.invoke(gas);
+            return name == null ? null : name.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private int resolveGasAmount(Object gasStack) {
+        if (cachedGasStackGetAmount != null) {
+            try {
+                Object value = cachedGasStackGetAmount.invoke(gasStack);
+                if (value instanceof Integer) {
+                    return (Integer) value;
+                }
+            } catch (Exception e) {
+                // Fallback to field read.
+            }
+        }
+        if (cachedGasStackAmountField != null) {
+            try {
+                return cachedGasStackAmountField.getInt(gasStack);
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+        return DEFAULT_GAS_AMOUNT;
+    }
+
+    private int resolveMarkerAmount(ItemStack stack, int fallback) {
+        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("TechStartFluidAmount")) {
+            int value = stack.getTagCompound().getInteger("TechStartFluidAmount");
+            return Math.max(1, value);
+        }
+        return Math.max(1, fallback);
+    }
+
+    private static void initGasMethods() {
+        if (gasMethodsReady) {
+            return;
+        }
+        gasMethodsReady = true;
+        try {
+            cachedGasItemClass = Class.forName("mekanism.api.gas.IGasItem");
+            cachedGasItemGetGas = cachedGasItemClass.getMethod("getGas", ItemStack.class);
+        } catch (Exception e) {
+            cachedGasItemClass = null;
+            cachedGasItemGetGas = null;
+        }
+        try {
+            Class<?> gasStackClass = Class.forName("mekanism.api.gas.GasStack");
+            cachedGasStackGetGas = gasStackClass.getMethod("getGas");
+            try {
+                cachedGasStackGetAmount = gasStackClass.getMethod("getAmount");
+            } catch (Exception e) {
+                cachedGasStackGetAmount = null;
+            }
+            try {
+                cachedGasStackAmountField = gasStackClass.getDeclaredField("amount");
+                cachedGasStackAmountField.setAccessible(true);
+            } catch (Exception e) {
+                cachedGasStackAmountField = null;
+            }
+            try {
+                cachedGasStackCtor = gasStackClass.getConstructor(Class.forName("mekanism.api.gas.Gas"), int.class);
+            } catch (Exception e) {
+                cachedGasStackCtor = null;
+            }
+        } catch (Exception e) {
+            cachedGasStackGetGas = null;
+            cachedGasStackGetAmount = null;
+            cachedGasStackAmountField = null;
+            cachedGasStackCtor = null;
+        }
+        try {
+            Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
+            cachedGasGetName = gasClass.getMethod("getName");
+        } catch (Exception e) {
+            cachedGasGetName = null;
+        }
+        try {
+            cachedDummyGasItemClass = Class.forName("com.mekeng.github.common.item.ItemDummyGas");
+            cachedDummyGasSetGas = cachedDummyGasItemClass.getMethod("setGasStack", ItemStack.class, Class.forName("mekanism.api.gas.GasStack"));
+            cachedDummyGasGetGas = cachedDummyGasItemClass.getMethod("getGasStack", ItemStack.class);
+        } catch (Exception e) {
+            cachedDummyGasItemClass = null;
+            cachedDummyGasSetGas = null;
+            cachedDummyGasGetGas = null;
+        }
+        try {
+            Class<?> gasRegistryClass = Class.forName("mekanism.api.gas.GasRegistry");
+            cachedGasRegistryGetGas = gasRegistryClass.getMethod("getGas", String.class);
+        } catch (Exception e) {
+            cachedGasRegistryGetGas = null;
+        }
+    }
+
+    private static void initFakeFluidMethods() {
+        if (fakeFluidMethodsReady) {
+            return;
+        }
+        fakeFluidMethodsReady = true;
+        try {
+            Class<?> fakeFluids = Class.forName("com.glodblock.github.common.item.fake.FakeFluids");
+            cachedFakeFluidCheck = fakeFluids.getMethod("isFluidFakeItem", ItemStack.class);
+            cachedFakeFluidDisplay = fakeFluids.getMethod("displayFluid", FluidStack.class);
+        } catch (Exception e) {
+            cachedFakeFluidCheck = null;
+            cachedFakeFluidDisplay = null;
+        }
+        try {
+            Class<?> fakeItemRegister = Class.forName("com.glodblock.github.common.item.fake.FakeItemRegister");
+            cachedFakeItemGetStack = fakeItemRegister.getMethod("getStack", ItemStack.class);
+        } catch (Exception e) {
+            cachedFakeItemGetStack = null;
+        }
+    }
+
+    private static void initFakeGasMethods() {
+        if (fakeGasMethodsReady) {
+            return;
+        }
+        fakeGasMethodsReady = true;
+        initFakeFluidMethods();
+        try {
+            Class<?> fakeGases = Class.forName("com.glodblock.github.integration.mek.FakeGases");
+            cachedFakeGasCheck = fakeGases.getMethod("isGasFakeItem", ItemStack.class);
+            cachedFakeGasDisplay = fakeGases.getMethod("displayGas", Class.forName("mekanism.api.gas.GasStack"));
+        } catch (Exception e) {
+            cachedFakeGasCheck = null;
+            cachedFakeGasDisplay = null;
+        }
+    }
+
+    private boolean isFakeFluidItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        initFakeFluidMethods();
+        if (cachedFakeFluidCheck == null) {
+            return false;
+        }
+        try {
+            Object result = cachedFakeFluidCheck.invoke(null, stack);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private FluidStack getFakeFluidStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return null;
+        }
+        initFakeFluidMethods();
+        if (cachedFakeItemGetStack == null) {
+            return null;
+        }
+        try {
+            Object result = cachedFakeItemGetStack.invoke(null, stack);
+            if (result instanceof FluidStack) {
+                return (FluidStack) result;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    private Object getFakeGasStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return null;
+        }
+        initFakeGasMethods();
+        if (cachedFakeItemGetStack == null || cachedGasStackGetGas == null) {
+            return null;
+        }
+        try {
+            Object result = cachedFakeItemGetStack.invoke(null, stack);
+            if (result != null && cachedGasStackGetGas.getDeclaringClass().isInstance(result)) {
+                return result;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    private boolean isGasItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        initGasMethods();
+        if (cachedDummyGasItemClass != null && cachedDummyGasItemClass.isInstance(stack.getItem())) {
+            return true;
+        }
+        if (cachedGasItemClass == null) {
+            return false;
+        }
+        return cachedGasItemClass.isInstance(stack.getItem());
+    }
+
+    private boolean isGasMarkerStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        initFakeGasMethods();
+        if (cachedFakeGasCheck != null) {
+            try {
+                Object result = cachedFakeGasCheck.invoke(null, stack);
+                if (result instanceof Boolean && (Boolean) result) {
+                    return true;
+                }
+            } catch (Exception e) {
+                // Ignore and continue.
+            }
+        }
+        if (cachedDummyGasItemClass != null && cachedDummyGasItemClass.isInstance(stack.getItem())) {
+            return true;
+        }
+        if (!stack.hasTagCompound()) {
+            return false;
+        }
+        NBTTagCompound tag = stack.getTagCompound();
+        return tag.getBoolean("TechStartGasMarker") || tag.hasKey("TechStartGasName");
+    }
+
+    private ItemStack createFluidMarkerStack(String fluidName, int amount) {
+        if (fluidName == null || fluidName.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        net.minecraftforge.fluids.Fluid fluid = FluidRegistry.getFluid(fluidName);
+        if (fluid == null) {
+            return ItemStack.EMPTY;
+        }
+        initFakeFluidMethods();
+        if (cachedFakeFluidDisplay == null) {
+            return ItemStack.EMPTY;
+        }
+        try {
+            FluidStack fluidStack = new FluidStack(fluid, Math.max(1, amount));
+            Object result = cachedFakeFluidDisplay.invoke(null, fluidStack);
+            if (result instanceof ItemStack) {
+                ItemStack marker = (ItemStack) result;
+                NBTTagCompound tag = marker.hasTagCompound() ? marker.getTagCompound() : new NBTTagCompound();
+                tag.setInteger("TechStartFluidAmount", Math.max(1, amount));
+                marker.setTagCompound(tag);
+                return marker;
+            }
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
+        return ItemStack.EMPTY;
+    }
+
+
+    /**
+     * 流体信息容器类
+     */
+    private static class FluidInfo {
+        String fluidName;
+        int amount;
+
+        FluidInfo(String fluidName, int amount) {
+            this.fluidName = fluidName;
+            this.amount = amount;
+        }
+    }
+
+    /**
+     * 气体信息容器类
+     */
+    private static class GasInfo {
+        String gasName;
+        int amount;
+
+        GasInfo(String gasName, int amount) {
+            this.gasName = gasName;
+            this.amount = amount;
+        }
+    }
+
 
     /**
      * ??????????????????
@@ -363,21 +935,78 @@ public class ContainerPatternEditor extends Container {
      * ??????
      */
     public void encodeSmartPattern() {
-        ItemStack inputStack = getInputStack();
-        ItemStack outputStack = getOutputStack();
+        List<ItemStack> inputStacks = new ArrayList<>();
+        List<ItemStack> outputStacks = new ArrayList<>();
 
-        if (inputStack.isEmpty() || outputStack.isEmpty()) {
+        for (int i = 0; i < INPUT_SLOTS; i++) {
+            ItemStack stack = inputInventory.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                inputStacks.add(stack);
+            }
+        }
+
+        for (int i = 0; i < OUTPUT_SLOTS; i++) {
+            ItemStack stack = outputInventory.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                outputStacks.add(stack);
+            }
+        }
+
+        if (inputStacks.isEmpty() || outputStacks.isEmpty()) {
             return;
         }
 
-        String inputOreName = toWildcardPattern(getOreName(inputStack));
-        String outputOreName = toWildcardPattern(getOreName(outputStack));
-        String displayName = inputStack.getDisplayName() + " ? " + outputStack.getDisplayName();
+        String material = null;
+        List<String> inputOres = new ArrayList<>();
+        List<Integer> inputCounts = new ArrayList<>();
+
+        for (ItemStack stack : inputStacks) {
+            String oreName = getOreName(stack);
+            if (oreName == null) {
+                return;
+            }
+            String baseType = extractBaseType(oreName);
+            String stackMaterial = extractMaterial(oreName);
+            if (baseType == null || stackMaterial == null) {
+                return;
+            }
+            if (material == null) {
+                material = stackMaterial;
+            } else if (!material.equals(stackMaterial)) {
+                return;
+            }
+            inputOres.add(baseType + "*");
+            inputCounts.add(stack.getCount());
+        }
+
+        List<String> outputOres = new ArrayList<>();
+        List<Integer> outputCounts = new ArrayList<>();
+
+        for (ItemStack stack : outputStacks) {
+            String oreName = getOreName(stack);
+            if (oreName == null) {
+                return;
+            }
+            String baseType = extractBaseType(oreName);
+            String stackMaterial = extractMaterial(oreName);
+            if (baseType == null || stackMaterial == null) {
+                return;
+            }
+            if (material == null) {
+                material = stackMaterial;
+            } else if (!material.equals(stackMaterial)) {
+                return;
+            }
+            outputOres.add(baseType + "*");
+            outputCounts.add(stack.getCount());
+        }
+
+        String displayName = inputStacks.get(0).getDisplayName() + " → " + outputStacks.get(0).getDisplayName();
 
         ItemStack patternStack = getPatternStack();
         if (!patternStack.isEmpty() && patternStack.getItem() instanceof ItemTest) {
             ItemTest patternItem = (ItemTest) patternStack.getItem();
-            patternItem.setEncodedItem(patternStack, inputOreName, outputOreName, displayName);
+            patternItem.setEncodedItem(patternStack, inputOres, inputCounts, outputOres, outputCounts, displayName);
         }
     }
 
@@ -385,29 +1014,48 @@ public class ContainerPatternEditor extends Container {
     public void onContainerClosed(EntityPlayer playerIn) {
         super.onContainerClosed(playerIn);
         
+        // 在返还物品之前，尝试编码样板（包括流体）
+        if (!playerIn.world.isRemote) {
+            try {
+                encodePatternOnClose();
+            } catch (Exception e) {
+                // 编码失败，继续返还物品
+            }
+        }
+        
         // 当容器关闭时，返还输入和输出槽位中的物品
         if (!playerIn.world.isRemote) {
-            // 确保两个槽位的物品都会被处理，即使其中一个出错也不影响另一个
-            try {
-                ItemStack inputStack = inputInventory.removeStackFromSlot(0);
-                if (!inputStack.isEmpty()) {
-                    if (!playerIn.inventory.addItemStackToInventory(inputStack)) {
-                        playerIn.dropItem(inputStack, false);
+            // 确保所有槽位的物品都会被处理，即使其中一个出错也不影响其他
+            for (int i = 0; i < INPUT_SLOTS; i++) {
+                try {
+                    ItemStack inputStack = inputInventory.removeStackFromSlot(i);
+                    if (!inputStack.isEmpty()) {
+                        if (isMarkerStack(inputStack)) {
+                            continue;
+                        }
+                        if (!playerIn.inventory.addItemStackToInventory(inputStack)) {
+                            playerIn.dropItem(inputStack, false);
+                        }
                     }
+                } catch (Exception e) {
+                    // 输入返还失败，继续处理其他槽位
                 }
-            } catch (Exception e) {
-                // 输入返还失败，继续处理输出
             }
-            
-            try {
-                ItemStack outputStack = outputInventory.removeStackFromSlot(0);
-                if (!outputStack.isEmpty()) {
-                    if (!playerIn.inventory.addItemStackToInventory(outputStack)) {
-                        playerIn.dropItem(outputStack, false);
+
+            for (int i = 0; i < OUTPUT_SLOTS; i++) {
+                try {
+                    ItemStack outputStack = outputInventory.removeStackFromSlot(i);
+                    if (!outputStack.isEmpty()) {
+                        if (isMarkerStack(outputStack)) {
+                            continue;
+                        }
+                        if (!playerIn.inventory.addItemStackToInventory(outputStack)) {
+                            playerIn.dropItem(outputStack, false);
+                        }
                     }
+                } catch (Exception e) {
+                    // 输出返还失败，继续处理其他槽位
                 }
-            } catch (Exception e) {
-                // 输出返还失败，至少已经尝试过了
             }
             
             // 标记容器已改变，强制同步
@@ -420,6 +1068,135 @@ public class ContainerPatternEditor extends Container {
         }
     }
 
+    /**
+     * 关闭GUI时编码样板（支持纯流体或混合模式）
+     */
+    private void encodePatternOnClose() {
+        ItemStack patternStack = getPatternStack();
+        if (patternStack.isEmpty() || !(patternStack.getItem() instanceof ItemTest)) {
+            return;
+        }
+
+        ItemTest patternItem = (ItemTest) patternStack.getItem();
+        
+        // 收集所有输入物品的矿辞、流体和气体
+        List<String> inputOres = new ArrayList<>();
+        List<Integer> inputCounts = new ArrayList<>();
+        List<String> inputFluids = new ArrayList<>();
+        List<Integer> inputFluidAmounts = new ArrayList<>();
+        List<String> inputGases = new ArrayList<>();
+        List<Integer> inputGasAmounts = new ArrayList<>();
+        List<ItemStack> inputGasItems = new ArrayList<>();
+
+        for (int i = 0; i < INPUT_SLOTS; i++) {
+            ItemStack stack = getInputStack(i);
+            if (!stack.isEmpty()) {
+                FluidInfo fluidInfo = extractFluidFromStack(stack);
+                if (fluidInfo != null && fluidInfo.fluidName != null && !fluidInfo.fluidName.isEmpty()) {
+                    inputFluids.add(fluidInfo.fluidName);
+                    inputFluidAmounts.add(fluidInfo.amount);
+                    continue;
+                }
+                GasInfo gasInfo = extractGasFromStack(stack);
+                if (gasInfo != null && gasInfo.gasName != null && !gasInfo.gasName.isEmpty()) {
+                    inputGases.add(gasInfo.gasName);
+                    inputGasAmounts.add(gasInfo.amount);
+                    inputGasItems.add(stripGasMarkerTag(stack.copy()));
+                    continue;
+                }
+                // 普通物品，获取矿辞
+                String oreName = getOreName(stack);
+                if (oreName != null && !oreName.isEmpty()) {
+                    String wildcardOre = toWildcardPattern(oreName);
+                    inputOres.add(wildcardOre);
+                    inputCounts.add(stack.getCount());
+                }
+            }
+        }
+
+        // 收集所有输出物品的矿辞、流体和气体
+        List<String> outputOres = new ArrayList<>();
+        List<Integer> outputCounts = new ArrayList<>();
+        List<String> outputFluids = new ArrayList<>();
+        List<Integer> outputFluidAmounts = new ArrayList<>();
+        List<String> outputGases = new ArrayList<>();
+        List<Integer> outputGasAmounts = new ArrayList<>();
+        List<ItemStack> outputGasItems = new ArrayList<>();
+
+        for (int i = 0; i < OUTPUT_SLOTS; i++) {
+            ItemStack stack = getOutputStack(i);
+            if (!stack.isEmpty()) {
+                FluidInfo fluidInfo = extractFluidFromStack(stack);
+                if (fluidInfo != null && fluidInfo.fluidName != null && !fluidInfo.fluidName.isEmpty()) {
+                    outputFluids.add(fluidInfo.fluidName);
+                    outputFluidAmounts.add(fluidInfo.amount);
+                    continue;
+                }
+                GasInfo gasInfo = extractGasFromStack(stack);
+                if (gasInfo != null && gasInfo.gasName != null && !gasInfo.gasName.isEmpty()) {
+                    outputGases.add(gasInfo.gasName);
+                    outputGasAmounts.add(gasInfo.amount);
+                    outputGasItems.add(stripGasMarkerTag(stack.copy()));
+                    continue;
+                }
+                // 普通物品，获取矿辞
+                String oreName = getOreName(stack);
+                if (oreName != null && !oreName.isEmpty()) {
+                    String wildcardOre = toWildcardPattern(oreName);
+                    outputOres.add(wildcardOre);
+                    outputCounts.add(stack.getCount());
+                }
+            }
+        }
+
+        // 只有当至少有一个输入或输出时才编码
+        if (!inputOres.isEmpty() || !outputOres.isEmpty() || !inputFluids.isEmpty() || !outputFluids.isEmpty()
+            || !inputGases.isEmpty() || !outputGases.isEmpty()) {
+            String displayName = buildDisplayName(inputOres, inputFluids, inputGases, outputOres, outputFluids, outputGases);
+
+            // 使用带流体/气体的编码方法
+                patternItem.setEncodedItemWithFluidsAndGases(patternStack, inputOres, inputCounts, outputOres, outputCounts,
+                    inputFluids, inputFluidAmounts, outputFluids, outputFluidAmounts,
+                    inputGases, inputGasAmounts, outputGases, outputGasAmounts,
+                    inputGasItems, outputGasItems, displayName);
+        }
+    }
+
+    /**
+     * 构建显示名称
+     */
+    private String buildDisplayName(List<String> inputOres, List<String> inputFluids, List<String> inputGases,
+                                     List<String> outputOres, List<String> outputFluids, List<String> outputGases) {
+        StringBuilder sb = new StringBuilder();
+        
+        if (!inputOres.isEmpty()) {
+            sb.append(inputOres.get(0).replace("*", ""));
+        }
+        if (!inputFluids.isEmpty()) {
+            if (sb.length() > 0) sb.append("+");
+            sb.append(inputFluids.get(0));
+        }
+        if (!inputGases.isEmpty()) {
+            if (sb.length() > 0) sb.append("+");
+            sb.append(inputGases.get(0));
+        }
+        
+        sb.append(" → ");
+        
+        if (!outputOres.isEmpty()) {
+            sb.append(outputOres.get(0).replace("*", ""));
+        }
+        if (!outputFluids.isEmpty()) {
+            if (!outputOres.isEmpty()) sb.append("+");
+            sb.append(outputFluids.get(0));
+        }
+        if (!outputGases.isEmpty()) {
+            if (!outputOres.isEmpty() || !outputFluids.isEmpty()) sb.append("+");
+            sb.append(outputGases.get(0));
+        }
+        return sb.toString();
+    }
+
     @Override
     public boolean canInteractWith(EntityPlayer playerIn) {
         return true;
@@ -427,6 +1204,47 @@ public class ContainerPatternEditor extends Container {
 
     @Override
     public ItemStack slotClick(int slotId, int dragType, net.minecraft.inventory.ClickType clickTypeIn, EntityPlayer player) {
+        if (slotId >= 0 && slotId < this.inventorySlots.size() && isPatternSlotId(slotId)) {
+            Slot slot = this.inventorySlots.get(slotId);
+            if (clickTypeIn == net.minecraft.inventory.ClickType.PICKUP) {
+                boolean handled = false;
+                ItemStack slotStack = slot.getStack();
+                if (!slotStack.isEmpty() && isMarkerStack(slotStack)) {
+                    if (dragType == 0) {
+                        slot.putStack(ItemStack.EMPTY);
+                        slot.onSlotChanged();
+                        handled = true;
+                    }
+                }
+                if (!handled && dragType == 0 && slotStack.isEmpty()) {
+                    ItemStack carried = player.inventory.getItemStack();
+                    if (!carried.isEmpty() && !isMarkerStack(carried)) {
+                        FluidInfo carriedFluid = extractFluidFromContainer(carried);
+                        if (carriedFluid != null && carriedFluid.fluidName != null && !carriedFluid.fluidName.isEmpty()) {
+                            ItemStack marker = createFluidMarkerStack(carriedFluid.fluidName, DEFAULT_FLUID_AMOUNT);
+                            if (!marker.isEmpty()) {
+                                slot.putStack(marker);
+                                slot.onSlotChanged();
+                                handled = true;
+                            }
+                        } else {
+                            GasInfo carriedGas = extractGasFromContainer(carried);
+                            if (carriedGas != null && carriedGas.gasName != null && !carriedGas.gasName.isEmpty()) {
+                                ItemStack marker = createGasMarkerStack(carried, carriedGas);
+                                if (!marker.isEmpty()) {
+                                    slot.putStack(marker);
+                                    slot.onSlotChanged();
+                                    handled = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (handled) {
+                    return player.inventory.getItemStack();
+                }
+            }
+        }
         return super.slotClick(slotId, dragType, clickTypeIn, player);
     }
 
@@ -437,18 +1255,21 @@ public class ContainerPatternEditor extends Container {
 
         if (slot != null && slot.getHasStack()) {
             ItemStack itemstack1 = slot.getStack();
+            if (index < TOTAL_PATTERN_SLOTS && isMarkerStack(itemstack1)) {
+                return ItemStack.EMPTY;
+            }
             itemstack = itemstack1.copy();
 
-            if (index < 2) {
-                // 从容器槽位(0-1)移到玩家背包(2-37)
-                if (!this.mergeItemStack(itemstack1, 2, 38, true)) {
+            if (index < TOTAL_PATTERN_SLOTS) {
+                // 从容器槽位(0-11)移到玩家背包(12-47)
+                if (!this.mergeItemStack(itemstack1, TOTAL_PATTERN_SLOTS, TOTAL_PATTERN_SLOTS + 36, true)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (index < 38) {
-                // 从玩家背包(2-37)移到容器槽位(0-1)
+            } else if (index < TOTAL_PATTERN_SLOTS + 36) {
+                // 从玩家背包(12-47)移到容器槽位(0-11)
                 if (isOreDictItem(itemstack1)) {
                     // 合并到输入/输出槽位
-                    if (!this.mergeItemStack(itemstack1, 0, 2, false)) {
+                    if (!this.mergeItemStack(itemstack1, 0, TOTAL_PATTERN_SLOTS, false)) {
                         return ItemStack.EMPTY;
                     }
                 } else {
@@ -493,15 +1314,25 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public boolean isItemValid(ItemStack stack) {
-            // 允许任何矿物辞典物品
+            // 允许矿物辞典物品或流体容器
             if (stack.isEmpty()) return false;
+
+            if (isMarkerStack(stack)) {
+                return true;
+            }
+
+            // 检查是否是矿物辞典物品
             int[] oreIds = OreDictionary.getOreIDs(stack);
-            return oreIds.length > 0;
+            if (oreIds.length > 0) {
+                return true;
+            }
+            
+            return false;
         }
 
         @Override
         public int getSlotStackLimit() {
-            return 1;
+            return 64;
         }
 
         @Override
@@ -530,10 +1361,6 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public void putStack(ItemStack stack) {
-            // 限制堆栈大小为1
-            if (!stack.isEmpty()) {
-                stack.setCount(Math.min(stack.getCount(), 1));
-            }
             this.inventory.setInventorySlotContents(this.getSlotIndex(), stack);
             this.onSlotChanged();
         }
@@ -546,6 +1373,81 @@ public class ContainerPatternEditor extends Container {
             // 更新派生配方
             container.updateDerivedRecipes();
             container.encodeSmartPattern();
+        }
+    }
+
+    public boolean isPatternSlotId(int slotId) {
+        return slotId >= 0 && slotId < TOTAL_PATTERN_SLOTS;
+    }
+
+    public boolean isInputSlotId(int slotId) {
+        return slotId >= 0 && slotId < INPUT_SLOTS;
+    }
+
+    public boolean isOutputSlotId(int slotId) {
+        return slotId >= INPUT_SLOTS && slotId < TOTAL_PATTERN_SLOTS;
+    }
+
+    public boolean isFluidMarkerStack(ItemStack stack) {
+        return isFakeFluidItem(stack) || isGasMarkerStack(stack);
+    }
+
+    public boolean isMarkerStack(ItemStack stack) {
+        return isFakeFluidItem(stack) || isGasMarkerStack(stack);
+    }
+
+    public int getFluidAmountForSlot(int slotId) {
+        if (!isPatternSlotId(slotId)) {
+            return DEFAULT_FLUID_AMOUNT;
+        }
+        Slot slot = this.inventorySlots.get(slotId);
+        if (slot == null) {
+            return DEFAULT_FLUID_AMOUNT;
+        }
+        FluidInfo info = extractFluidFromStack(slot.getStack());
+        if (info == null || info.amount <= 0) {
+            GasInfo gasInfo = extractGasFromStack(slot.getStack());
+            if (gasInfo == null || gasInfo.amount <= 0) {
+                return DEFAULT_FLUID_AMOUNT;
+            }
+            return gasInfo.amount;
+        }
+        return info.amount;
+    }
+
+    public void applyFluidAmountToSlot(int slotId, int amount) {
+        if (!isPatternSlotId(slotId)) {
+            return;
+        }
+        Slot slot = this.inventorySlots.get(slotId);
+        if (slot == null) {
+            return;
+        }
+        ItemStack current = slot.getStack();
+        if (isFakeFluidItem(current)) {
+            FluidInfo info = extractFluidFromStack(current);
+            if (info == null || info.fluidName == null || info.fluidName.isEmpty()) {
+                return;
+            }
+            ItemStack marker = createFluidMarkerStack(info.fluidName, Math.max(1, amount));
+            if (marker.isEmpty()) {
+                return;
+            }
+            slot.putStack(marker);
+            slot.onSlotChanged();
+            return;
+        }
+        if (isGasMarkerStack(current)) {
+            GasInfo info = extractGasFromStack(current);
+            if (info == null || info.gasName == null || info.gasName.isEmpty()) {
+                return;
+            }
+            ItemStack marker = createGasMarkerStack(current, new GasInfo(info.gasName, Math.max(1, amount)));
+            if (marker.isEmpty()) {
+                return;
+            }
+            slot.putStack(marker);
+            slot.onSlotChanged();
         }
     }
 
@@ -562,15 +1464,25 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public boolean isItemValid(ItemStack stack) {
-            // 允许任何矿物辞典物品
+            // 允许矿物辞典物品或流体容器
             if (stack.isEmpty()) return false;
+
+            if (isMarkerStack(stack)) {
+                return true;
+            }
+
+            // 检查是否是矿物辞典物品
             int[] oreIds = OreDictionary.getOreIDs(stack);
-            return oreIds.length > 0;
+            if (oreIds.length > 0) {
+                return true;
+            }
+            
+            return false;
         }
 
         @Override
         public int getSlotStackLimit() {
-            return 1;
+            return 64;
         }
 
         @Override
@@ -599,10 +1511,6 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public void putStack(ItemStack stack) {
-            // 限制堆栈大小为1
-            if (!stack.isEmpty()) {
-                stack.setCount(Math.min(stack.getCount(), 1));
-            }
             this.inventory.setInventorySlotContents(this.getSlotIndex(), stack);
             this.onSlotChanged();
         }
@@ -644,41 +1552,56 @@ public class ContainerPatternEditor extends Container {
      * 输入物品槽位 - 只读 (不可放置物品)
      */
     private class PatternInputInventory implements IInventory {
-        private ItemStack stack = ItemStack.EMPTY;
+        private final NonNullList<ItemStack> stacks;
+
+        private PatternInputInventory(int size) {
+            this.stacks = NonNullList.withSize(size, ItemStack.EMPTY);
+        }
 
         @Override
         public int getSizeInventory() {
-            return 1;
+            return stacks.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return stack.isEmpty();
+            for (ItemStack stack : stacks) {
+                if (!stack.isEmpty()) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         @Override
         public ItemStack getStackInSlot(int index) {
-            return index == 0 ? stack : ItemStack.EMPTY;
+            if (index >= 0 && index < stacks.size()) {
+                return stacks.get(index);
+            }
+            return ItemStack.EMPTY;
         }
 
         @Override
         public ItemStack decrStackSize(int index, int count) {
-            if (index == 0 && !stack.isEmpty()) {
-                ItemStack itemstack = stack.splitStack(count);
-                if (stack.isEmpty()) {
-                    stack = ItemStack.EMPTY;
+            if (index >= 0 && index < stacks.size()) {
+                ItemStack stack = stacks.get(index);
+                if (!stack.isEmpty()) {
+                    ItemStack itemstack = stack.splitStack(count);
+                    if (stack.isEmpty()) {
+                        stacks.set(index, ItemStack.EMPTY);
+                    }
+                    markDirty();
+                    return itemstack;
                 }
-                markDirty();
-                return itemstack;
             }
             return ItemStack.EMPTY;
         }
 
         @Override
         public ItemStack removeStackFromSlot(int index) {
-            if (index == 0) {
-                ItemStack itemstack = stack;
-                stack = ItemStack.EMPTY;
+            if (index >= 0 && index < stacks.size()) {
+                ItemStack itemstack = stacks.get(index);
+                stacks.set(index, ItemStack.EMPTY);
                 markDirty();
                 return itemstack;
             }
@@ -687,26 +1610,20 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public void setInventorySlotContents(int index, ItemStack stack) {
-            if (index == 0) {
-                this.stack = stack;
+            if (index >= 0 && index < stacks.size()) {
+                stacks.set(index, stack);
                 markDirty();
             }
         }
 
         @Override
         public int getInventoryStackLimit() {
-            return 1;
+            return 64;
         }
 
         @Override
         public void markDirty() {
-            // ?????????????
-            if (!stack.isEmpty() && ContainerPatternEditor.this.patternStack != null) {
-                ItemTest patternItem = (ItemTest) ContainerPatternEditor.this.patternStack.getItem();
-                patternItem.setEncodedItem(ContainerPatternEditor.this.patternStack,
-                    OreDictionary.getOreName(OreDictionary.getOreIDs(stack)[0]),
-                    stack.getDisplayName());
-            }
+            // 编码逻辑由槽位变更触发
         }
 
         @Override
@@ -743,7 +1660,9 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public void clear() {
-            stack = ItemStack.EMPTY;
+            for (int i = 0; i < stacks.size(); i++) {
+                stacks.set(i, ItemStack.EMPTY);
+            }
             markDirty();
         }
 
@@ -767,41 +1686,56 @@ public class ContainerPatternEditor extends Container {
      * ??????????
      */
     private class PatternOutputInventory implements IInventory {
-        private ItemStack stack = ItemStack.EMPTY;
+        private final NonNullList<ItemStack> stacks;
+
+        private PatternOutputInventory(int size) {
+            this.stacks = NonNullList.withSize(size, ItemStack.EMPTY);
+        }
 
         @Override
         public int getSizeInventory() {
-            return 1;
+            return stacks.size();
         }
 
         @Override
         public boolean isEmpty() {
-            return stack.isEmpty();
+            for (ItemStack stack : stacks) {
+                if (!stack.isEmpty()) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         @Override
         public ItemStack getStackInSlot(int index) {
-            return index == 0 ? stack : ItemStack.EMPTY;
+            if (index >= 0 && index < stacks.size()) {
+                return stacks.get(index);
+            }
+            return ItemStack.EMPTY;
         }
 
         @Override
         public ItemStack decrStackSize(int index, int count) {
-            if (index == 0 && !stack.isEmpty()) {
-                ItemStack itemstack = stack.splitStack(count);
-                if (stack.isEmpty()) {
-                    stack = ItemStack.EMPTY;
+            if (index >= 0 && index < stacks.size()) {
+                ItemStack stack = stacks.get(index);
+                if (!stack.isEmpty()) {
+                    ItemStack itemstack = stack.splitStack(count);
+                    if (stack.isEmpty()) {
+                        stacks.set(index, ItemStack.EMPTY);
+                    }
+                    markDirty();
+                    return itemstack;
                 }
-                markDirty();
-                return itemstack;
             }
             return ItemStack.EMPTY;
         }
 
         @Override
         public ItemStack removeStackFromSlot(int index) {
-            if (index == 0) {
-                ItemStack itemstack = stack;
-                stack = ItemStack.EMPTY;
+            if (index >= 0 && index < stacks.size()) {
+                ItemStack itemstack = stacks.get(index);
+                stacks.set(index, ItemStack.EMPTY);
                 markDirty();
                 return itemstack;
             }
@@ -810,15 +1744,15 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public void setInventorySlotContents(int index, ItemStack stack) {
-            if (index == 0) {
-                this.stack = stack;
+            if (index >= 0 && index < stacks.size()) {
+                stacks.set(index, stack);
                 markDirty();
             }
         }
 
         @Override
         public int getInventoryStackLimit() {
-            return 1;
+            return 64;
         }
 
         @Override
@@ -860,7 +1794,9 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public void clear() {
-            stack = ItemStack.EMPTY;
+            for (int i = 0; i < stacks.size(); i++) {
+                stacks.set(i, ItemStack.EMPTY);
+            }
             markDirty();
         }
 

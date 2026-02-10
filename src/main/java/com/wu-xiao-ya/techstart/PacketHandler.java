@@ -14,5 +14,6 @@ public class PacketHandler {
     
     public static void register() {
         INSTANCE.registerMessage(PacketUpdatePatternCount.Handler.class, PacketUpdatePatternCount.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetFluidAmount.Handler.class, PacketSetFluidAmount.class, packetId++, Side.SERVER);
     }
 }

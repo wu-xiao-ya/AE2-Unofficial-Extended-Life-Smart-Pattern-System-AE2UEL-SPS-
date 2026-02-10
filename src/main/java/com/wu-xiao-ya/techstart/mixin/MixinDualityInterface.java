@@ -39,27 +39,9 @@ public abstract class MixinDualityInterface {
             return;
         }
 
-        String inputOre = ItemTest.getInputOreNameStatic(stack);
-        String outputOre = ItemTest.getOutputOreNameStatic(stack);
-        
-        // 对于虚拟样板（已展开的），使用原逻辑
-        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("VirtualInputOreName")) {
-            return;
-        }
-        
-        // 对于通配符样板，展开为虚拟样板
-        if (inputOre.contains("*") || outputOre.contains("*")) {
-            SmartPatternDetails mainPattern = new SmartPatternDetails(stack);
-            List<SmartPatternDetails> virtualPatterns = mainPattern.expandToVirtualPatterns();
-
-            for (SmartPatternDetails virtualPattern : virtualPatterns) {
-                craftingList.add(virtualPattern);
-            }
-
-            // 取消原始方法，不添加通配符样板或包装器本身
-            ci.cancel();
-            return;
-        }
+        // Prevent the interface from providing ItemTest patterns; PatternExpander will provide them.
+        ci.cancel();
+        return;
     }
 
     @Inject(method = "provideCrafting", at = @At("HEAD"))

@@ -91,7 +91,7 @@ public class WildcardPatternWrapper implements ICraftingPatternDetails {
     @Override
     public boolean canSubstitute() {
         // 允许替代 - 这样用户可以选择其他材料
-        return primaryPattern.canSubstitute();
+        return true;
     }
 
     @Override
