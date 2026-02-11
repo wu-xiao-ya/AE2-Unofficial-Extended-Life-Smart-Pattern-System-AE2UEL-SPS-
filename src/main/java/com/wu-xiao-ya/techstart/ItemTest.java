@@ -51,6 +51,10 @@ public class ItemTest extends Item implements ICraftingPatternItem {
     private static final String TAG_OUTPUT_GAS_AMOUNTS = "OutputGasAmounts";
     private static final String TAG_INPUT_GAS_ITEMS = "InputGasItems";
     private static final String TAG_OUTPUT_GAS_ITEMS = "OutputGasItems";
+    private static final String TAG_FILTER_MODE = "FilterMode";
+    private static final String TAG_FILTER_ENTRIES = "FilterEntries";
+    public static final int FILTER_MODE_WHITELIST = 0;
+    public static final int FILTER_MODE_BLACKLIST = 1;
     /**
      * 构造方法：设置物品属性
      */
@@ -199,7 +203,80 @@ public class ItemTest extends Item implements ICraftingPatternItem {
             stack.getTagCompound().removeTag(TAG_OUTPUT_GAS_AMOUNTS);
             stack.getTagCompound().removeTag(TAG_INPUT_GAS_ITEMS);
             stack.getTagCompound().removeTag(TAG_OUTPUT_GAS_ITEMS);
+            stack.getTagCompound().removeTag(TAG_FILTER_MODE);
+            stack.getTagCompound().removeTag(TAG_FILTER_ENTRIES);
         }
+    }
+
+    public int getFilterMode(ItemStack stack) {
+        return getFilterModeStatic(stack);
+    }
+
+    public void setFilterMode(ItemStack stack, int mode) {
+        setFilterModeStatic(stack, mode);
+    }
+
+    public List<String> getFilterEntries(ItemStack stack) {
+        return getFilterEntriesStatic(stack);
+    }
+
+    public static int getFilterModeStatic(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) {
+            return FILTER_MODE_BLACKLIST;
+        }
+        return stack.getTagCompound().getInteger(TAG_FILTER_MODE);
+    }
+
+    public static void setFilterModeStatic(ItemStack stack, int mode) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        if (!stack.hasTagCompound()) {
+            stack.setTagCompound(new NBTTagCompound());
+        }
+        int value = (mode == FILTER_MODE_BLACKLIST) ? FILTER_MODE_BLACKLIST : FILTER_MODE_WHITELIST;
+        stack.getTagCompound().setInteger(TAG_FILTER_MODE, value);
+    }
+
+    public static List<String> getFilterEntriesStatic(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) {
+            return new ArrayList<>();
+        }
+        return readStringList(stack.getTagCompound(), TAG_FILTER_ENTRIES, "");
+    }
+
+    public static void toggleFilterEntryStatic(ItemStack stack, String entry) {
+        if (stack == null || stack.isEmpty() || entry == null || entry.isEmpty()) {
+            return;
+        }
+        if (!stack.hasTagCompound()) {
+            stack.setTagCompound(new NBTTagCompound());
+        }
+        NBTTagCompound tag = stack.getTagCompound();
+        List<String> entries = readStringList(tag, TAG_FILTER_ENTRIES, "");
+        if (entries.contains(entry)) {
+            entries.remove(entry);
+        } else {
+            entries.add(entry);
+        }
+        NBTTagList list = new NBTTagList();
+        for (String value : entries) {
+            if (value != null && !value.isEmpty()) {
+                list.appendTag(new NBTTagString(value));
+            }
+        }
+        if (list.tagCount() > 0) {
+            tag.setTag(TAG_FILTER_ENTRIES, list);
+        } else {
+            tag.removeTag(TAG_FILTER_ENTRIES);
+        }
+    }
+
+    public static void clearFilterEntriesStatic(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) {
+            return;
+        }
+        stack.getTagCompound().removeTag(TAG_FILTER_ENTRIES);
     }
 
     /**

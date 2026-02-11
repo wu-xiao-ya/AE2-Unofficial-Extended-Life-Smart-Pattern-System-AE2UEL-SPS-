@@ -1,5 +1,6 @@
 package com.lwx1145.techstart;
 
+
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -8,14 +9,14 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 /**
- * 网络包：更新样板物品的数量设置
+ * 缃戠粶鍖咃細鏇存柊鏍锋澘鐗╁搧鐨勬暟閲忚缃?
  */
 public class PacketUpdatePatternCount implements IMessage {
     
-    private boolean isInput; // true = 输入数量, false = 输出数量
+    private boolean isInput; // true = 杈撳叆鏁伴噺, false = 杈撳嚭鏁伴噺
     private int count;
     
-    // 必须有无参构造函数
+    // 蹇呴』鏈夋棤鍙傛瀯閫犲嚱鏁?
     public PacketUpdatePatternCount() {}
     
     public PacketUpdatePatternCount(boolean isInput, int count) {
@@ -40,9 +41,9 @@ public class PacketUpdatePatternCount implements IMessage {
         public IMessage onMessage(PacketUpdatePatternCount message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             
-            // 在主线程中处理
+            // 鍦ㄤ富绾跨▼涓鐞?
             player.getServerWorld().addScheduledTask(() -> {
-                // 获取玩家手中的样板物品
+                // 鑾峰彇鐜╁鎵嬩腑鐨勬牱鏉跨墿鍝?
                 ItemStack patternStack = player.getHeldItemMainhand();
                 if (patternStack.isEmpty() || !(patternStack.getItem() instanceof ItemTest)) {
                     patternStack = player.getHeldItemOffhand();
@@ -51,21 +52,21 @@ public class PacketUpdatePatternCount implements IMessage {
                 if (!patternStack.isEmpty() && patternStack.getItem() instanceof ItemTest) {
                     ItemTest patternItem = (ItemTest) patternStack.getItem();
                     
-                    // 获取当前的数据
+                    // 鑾峰彇褰撳墠鐨勬暟鎹?
                     String inputOre = patternItem.getInputOreName(patternStack);
                     String outputOre = patternItem.getOutputOreName(patternStack);
                     String displayName = patternItem.getEncodedItemName(patternStack);
                     int inputCount = patternItem.getInputCount(patternStack);
                     int outputCount = patternItem.getOutputCount(patternStack);
                     
-                    // 更新对应的数量
+                    // 鏇存柊瀵瑰簲鐨勬暟閲?
                     if (message.isInput) {
                         inputCount = message.count;
                     } else {
                         outputCount = message.count;
                     }
                     
-                    // 保存到NBT
+                    // 淇濆瓨鍒癗BT
                     if (!inputOre.isEmpty() && !outputOre.isEmpty()) {
                         patternItem.setEncodedItem(patternStack, inputOre, outputOre, displayName, inputCount, outputCount);
                     }

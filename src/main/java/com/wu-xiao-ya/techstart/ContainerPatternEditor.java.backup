@@ -1,5 +1,4 @@
 // 样板编辑器容器
-package com.lwx1145.techstart;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;

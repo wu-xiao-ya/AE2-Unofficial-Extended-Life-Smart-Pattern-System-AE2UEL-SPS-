@@ -1,5 +1,6 @@
 package com.lwx1145.techstart;
 
+
 import appeng.api.AEApi;
 import appeng.api.networking.*;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
@@ -25,9 +26,9 @@ import java.lang.reflect.Method;
 import java.util.*;
 
 /**
- * 样板扩展器TileEntity
- * 实现AE2的IGridHost接口，连接到AE网络
- * 自动扫描网络中的ME接口，找到通配符样板并展开
+ * 鏍锋澘鎵╁睍鍣═ileEntity
+ * 瀹炵幇AE2鐨処GridHost鎺ュ彛锛岃繛鎺ュ埌AE缃戠粶
+ * 鑷姩鎵弿缃戠粶涓殑ME鎺ュ彛锛屾壘鍒伴€氶厤绗︽牱鏉垮苟灞曞紑
  */
 public class TileEntityPatternExpander extends TileEntity implements IGridHost, ICraftingProvider, ITickable {
 
@@ -35,7 +36,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
 
     private IGridNode gridNode;
     private boolean isFirstTick = true;
-    // 使用常规集合减少写入时的额外拷贝
+    // 浣跨敤甯歌闆嗗悎鍑忓皯鍐欏叆鏃剁殑棰濆鎷疯礉
     private final Set<ICraftingPatternDetails> expandedPatterns = new HashSet<>();
     private final Map<Object, List<ICraftingPatternDetails>> interfacePatternMap = Collections.synchronizedMap(new HashMap<>());
 
@@ -65,17 +66,17 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
     private static boolean ae2fcHelpersInitialized = false;
 
     public TileEntityPatternExpander() {
-        // 构造器
+        // 鏋勯€犲櫒
     }
 
     public void update() {
         if (world.isRemote) {
-            return; // 只在服务器端执行
+            return; // 鍙湪鏈嶅姟鍣ㄧ鎵ц
         }
 
         if (isFirstTick) {
             isFirstTick = false;
-            // 创建并初始化网格节点
+            // 鍒涘缓骞跺垵濮嬪寲缃戞牸鑺傜偣
             createGridNode();
         }
 
@@ -99,7 +100,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                     scanDirty = true;
                 }
             } catch (Exception e) {
-                System.err.println("[PatternExpander] 创建网格节点失败: " + e.getMessage());
+                System.err.println("[PatternExpander] 鍒涘缓缃戞牸鑺傜偣澶辫触: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -291,7 +292,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                             duality = getDualityFromTile(host);
                         }
                     } catch (ClassNotFoundException e) {
-                        // AE2FC未安装，跳过
+                        // AE2FC鏈畨瑁咃紝璺宠繃
                     }
                 }
 
@@ -340,7 +341,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
     }
 
     /**
-     * 扫描网络中的ME接口，找到通配符样板并展开
+     * 鎵弿缃戠粶涓殑ME鎺ュ彛锛屾壘鍒伴€氶厤绗︽牱鏉垮苟灞曞紑
      */
     private void scanAndExpandPatterns() {
         if (gridNode == null || !gridNode.isActive()) {
@@ -354,17 +355,17 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
 
         try {
             debugLog("开始扫描样板");
-            // 清空之前的展开样板
+            // 娓呯┖涔嬪墠鐨勫睍寮€鏍锋澘
             expandedPatterns.clear();
             interfacePatternMap.clear();
             currentInterfacePatternHash = 1;
             currentInterfacePatternCount = 0;
 
-            // 遍历网络中的所有节点
+            // 閬嶅巻缃戠粶涓殑鎵€鏈夎妭鐐?
             for (IGridNode node : grid.getNodes()) {
                 Object host = node.getMachine();
                 
-                // 检查是否是TileInterface（官方ME接口）
+                // 妫€鏌ユ槸鍚︽槸TileInterface锛堝畼鏂筂E鎺ュ彛锛?
                 if (host instanceof appeng.tile.misc.TileInterface) {
                     appeng.tile.misc.TileInterface tileInterface = (appeng.tile.misc.TileInterface) host;
                     DualityInterface duality = getDualityFromTile(tileInterface);
@@ -374,7 +375,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                         System.err.println("[PatternExpander] AE2 interface duality not found for host: " + host.getClass().getName());
                     }
                 } else {
-                    // 检查是否是AE2FC的TileDualInterface（流体接口）
+                    // 妫€鏌ユ槸鍚︽槸AE2FC鐨凾ileDualInterface锛堟祦浣撴帴鍙ｏ級
                     try {
                         Class<?> tileDualInterfaceClass = Class.forName("com.glodblock.github.common.tile.TileDualInterface");
                         Class<?> tileTrioInterfaceClass = tryLoadClass("com.glodblock.github.common.tile.TileTrioInterface");
@@ -392,7 +393,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                             }
                         }
                     } catch (ClassNotFoundException e) {
-                        // AE2FC未安装，跳过
+                        // AE2FC鏈畨瑁咃紝璺宠繃
                     }
                 }
             }
@@ -418,10 +419,10 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                 otherCount++;
             }
 
-            debugLog("扫描完成: expanded=" + currentCount + ", interfaces=" + interfacePatternMap.size()
+            debugLog("鎵弿瀹屾垚: expanded=" + currentCount + ", interfaces=" + interfacePatternMap.size()
                 + ", smart=" + smartCount + ", ae2fc=" + ae2fcCount + ", other=" + otherCount);
 
-            // 仅在配方发生变化时通知网络更新合成列表
+            // 浠呭湪閰嶆柟鍙戠敓鍙樺寲鏃堕€氱煡缃戠粶鏇存柊鍚堟垚鍒楄〃
             if (gridNode.isActive() && (currentCount != lastPatternCount || currentHash != lastPatternHash)) {
                 lastPatternCount = currentCount;
                 lastPatternHash = currentHash;
@@ -435,13 +436,13 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
             lastScanTick = world.getTotalWorldTime();
 
         } catch (Exception e) {
-            System.err.println("[PatternExpander] 扫描失败: " + e.getMessage());
+            System.err.println("[PatternExpander] 鎵弿澶辫触: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     /**
-     * 从Tile形式的ME接口获取DualityInterface
+     * 浠嶵ile褰㈠紡鐨凪E鎺ュ彛鑾峰彇DualityInterface
      */
     private DualityInterface getDualityFromTile(Object tile) {
         try {
@@ -534,11 +535,11 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
     }
 
     /**
-     * 从ME接口展开通配符样板
+     * 浠嶮E鎺ュ彛灞曞紑閫氶厤绗︽牱鏉?
      */
     private void expandPatternsFromInterface(Object pushTarget, DualityInterface duality) {
         try {
-            // 获取接口的样板槽位（AppEngInternalInventory类型）
+            // 鑾峰彇鎺ュ彛鐨勬牱鏉挎Ы浣嶏紙AppEngInternalInventory绫诲瀷锛?
             Field patternsField = resolvePatternsField(duality);
             if (patternsField == null) {
                 System.err.println("[PatternExpander] No patterns field for duality: " + duality.getClass().getName());
@@ -546,7 +547,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
             }
             Object patternsObj = patternsField.get(duality);
             
-            // AppEngInternalInventory 实现了 IItemHandler 接口
+            // AppEngInternalInventory 瀹炵幇浜?IItemHandler 鎺ュ彛
             if (!(patternsObj instanceof net.minecraftforge.items.IItemHandler)) {
                 System.err.println("[PatternExpander] Patterns is not IItemHandler: " + patternsObj.getClass().getName());
                 return;
@@ -563,17 +564,17 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                     continue;
                 }
 
-                // 检查是否是我们的智能样板
+                // 妫€鏌ユ槸鍚︽槸鎴戜滑鐨勬櫤鑳芥牱鏉?
                 if (!(patternStack.getItem() instanceof ItemTest)) {
                     if (logSlotDetails) {
-                        debugLog("AE2FC slot " + i + " 非智能样板: item=" + patternStack.getItem().getClass().getName());
+                        debugLog("AE2FC slot " + i + " 闈炴櫤鑳芥牱鏉? item=" + patternStack.getItem().getClass().getName());
                     }
                     continue;
                 }
 
                 if (!ItemTest.hasEncodedItemStatic(patternStack)) {
                     if (logSlotDetails) {
-                        debugLog("AE2FC slot " + i + " 未编码: item=" + patternStack.getItem().getClass().getName());
+                        debugLog("AE2FC slot " + i + " 鏈紪鐮? item=" + patternStack.getItem().getClass().getName());
                     }
                     continue;
                 }
@@ -583,7 +584,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                 String inputOre = ItemTest.getInputOreNameStatic(patternStack);
                 String outputOre = ItemTest.getOutputOreNameStatic(patternStack);
 
-                // 展开为虚拟样板（通配符）或直接使用原样板（非通配符）
+                // 灞曞紑涓鸿櫄鎷熸牱鏉匡紙閫氶厤绗︼級鎴栫洿鎺ヤ娇鐢ㄥ師鏍锋澘锛堥潪閫氶厤绗︼級
                 SmartPatternDetails mainPattern = new SmartPatternDetails(patternStack);
                 List<SmartPatternDetails> virtualPatterns = new ArrayList<>();
                 if (inputOre.contains("*") || outputOre.contains("*")) {
@@ -593,6 +594,12 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                 }
 
                 for (SmartPatternDetails detail : virtualPatterns) {
+                    if (!detail.isAllowedByFilter()) {
+                        if (logSlotDetails) {
+                            debugLog("AE2FC skip by filter: slot=" + i + ", detail=" + detail.getOreName());
+                        }
+                        continue;
+                    }
                     ICraftingPatternDetails offered = detail;
                     if (detail.hasInputFluids() || detail.hasOutputFluids()) {
                         ICraftingPatternDetails fluidPattern = buildAe2fcFluidPatternDetails(detail);
@@ -625,10 +632,10 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                 interfacePatternMap.put(pushTarget, expandedForThisInterface);
             }
 
-            debugLog("接口展开: host=" + pushTarget.getClass().getName() + ", slots=" + patterns.getSlots() + ", added=" + added);
+            debugLog("鎺ュ彛灞曞紑: host=" + pushTarget.getClass().getName() + ", slots=" + patterns.getSlots() + ", added=" + added);
 
         } catch (Exception e) {
-            System.err.println("[PatternExpander] 展开样板失败: " + e.getMessage());
+            System.err.println("[PatternExpander] 灞曞紑鏍锋澘澶辫触: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -696,7 +703,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
         return null;
     }
 
-    // ========== IGridHost 接口实现 ==========
+    // ========== IGridHost 鎺ュ彛瀹炵幇 ==========
 
     public IGridNode getGridNode(AEPartLocation dir) {
         return gridNode;
@@ -707,7 +714,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
     }
 
     public void securityBreak() {
-        // 安全破坏
+        // 瀹夊叏鐮村潖
         world.destroyBlock(pos, true);
     }
 
@@ -715,29 +722,29 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
         return new DimensionalCoord(this);
     }
 
-    // ========== ICraftingProvider 接口实现 ==========
+    // ========== ICraftingProvider 鎺ュ彛瀹炵幇 ==========
 
     public void provideCrafting(ICraftingProviderHelper craftingTracker) {
-        // 提供展开的虚拟样板给合成系统
+        // 鎻愪緵灞曞紑鐨勮櫄鎷熸牱鏉跨粰鍚堟垚绯荤粺
         for (ICraftingPatternDetails pattern : expandedPatterns) {
             craftingTracker.addCraftingOption(this, pattern);
         }
 
         if (lastProvideCount != expandedPatterns.size()) {
             lastProvideCount = expandedPatterns.size();
-            debugLog("提供样板数量: " + lastProvideCount);
+            debugLog("鎻愪緵鏍锋澘鏁伴噺: " + lastProvideCount);
         }
     }
 
     public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
-        // 将合成任务推送到原始的ME接口
-        // 找到包含这个样板的接口
+        // 灏嗗悎鎴愪换鍔℃帹閫佸埌鍘熷鐨凪E鎺ュ彛
+        // 鎵惧埌鍖呭惈杩欎釜鏍锋澘鐨勬帴鍙?
         for (Map.Entry<Object, List<ICraftingPatternDetails>> entry : interfacePatternMap.entrySet()) {
             if (entry.getValue().contains(patternDetails)) {
                 Object target = entry.getKey();
                 
                 try {
-                    // 调用接口的pushPattern方法
+                    // 璋冪敤鎺ュ彛鐨刾ushPattern鏂规硶
                     ICraftingPatternDetails effectiveDetails = patternDetails;
                     if (shouldUseAe2fcPattern(target, patternDetails)) {
                         effectiveDetails = resolveAe2fcPattern(patternDetails);
@@ -772,14 +779,14 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
 
                     return result;
                 } catch (Exception e) {
-                    System.err.println("[PatternExpander] 推送样板失败: " + e.getMessage());
+                    System.err.println("[PatternExpander] 鎺ㄩ€佹牱鏉垮け璐? " + e.getMessage());
                     e.printStackTrace();
                     return false;
                 }
             }
         }
 
-        System.err.println("[PatternExpander] 未找到样板对应接口: " + patternDetails.getPattern());
+        System.err.println("[PatternExpander] 鏈壘鍒版牱鏉垮搴旀帴鍙? " + patternDetails.getPattern());
         debugLog("pushPattern miss: details=" + patternDetails.getClass().getName());
         
         return false;
@@ -1023,7 +1030,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                 return (ICraftingPatternDetails) result;
             }
         } catch (Exception e) {
-            System.err.println("[PatternExpander] AE2FC 流体样板转换失败: " + e.getMessage());
+            System.err.println("[PatternExpander] AE2FC 娴佷綋鏍锋澘杞崲澶辫触: " + e.getMessage());
         }
         return patternDetails;
     }
@@ -1044,7 +1051,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                 debugLog("AE2FC GetFluidPattern returned non-fluid: " + details.getClass().getName());
             }
         } catch (Exception e) {
-            System.err.println("[PatternExpander] AE2FC 流体样板创建失败: " + e.getMessage());
+            System.err.println("[PatternExpander] AE2FC 娴佷綋鏍锋澘鍒涘缓澶辫触: " + e.getMessage());
         }
         // Fallback: try direct constructor for FluidCraftingPatternDetails
         try {
@@ -1059,7 +1066,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
                 }
             }
         } catch (Exception e) {
-            System.err.println("[PatternExpander] AE2FC 构造流体样板失败: " + e.getMessage());
+            System.err.println("[PatternExpander] AE2FC 鏋勯€犳祦浣撴牱鏉垮け璐? " + e.getMessage());
         }
         return null;
     }
@@ -1083,13 +1090,13 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
             debugLog("AE2FC FluidPatternDetails used");
             return (ICraftingPatternDetails) result;
         } catch (Exception e) {
-            System.err.println("[PatternExpander] AE2FC FluidPatternDetails 创建失败: " + e.getMessage());
+            System.err.println("[PatternExpander] AE2FC FluidPatternDetails 鍒涘缓澶辫触: " + e.getMessage());
             return null;
         }
     }
 
     public boolean isBusy() {
-        // 检查所有关联的接口是否繁忙
+        // 妫€鏌ユ墍鏈夊叧鑱旂殑鎺ュ彛鏄惁绻佸繖
         for (Object target : interfacePatternMap.keySet()) {
             if (target instanceof DualityInterface) {
                 if (((DualityInterface) target).isBusy()) {
@@ -1110,7 +1117,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
         return false;
     }
 
-    // ========== TileEntity 生命周期 ==========
+    // ========== TileEntity 鐢熷懡鍛ㄦ湡 ==========
 
     public void onLoad() {
         if (!world.isRemote) {
@@ -1145,18 +1152,18 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
     @Override
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
-        // 读取存储的数据（如果有）
+        // 璇诲彇瀛樺偍鐨勬暟鎹紙濡傛灉鏈夛級
     }
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
-        // 保存数据（如果有）
+        // 淇濆瓨鏁版嵁锛堝鏋滄湁锛?
         return compound;
     }
 
     /**
-     * GridBlockInfo - AE2网格节点信息
+     * GridBlockInfo - AE2缃戞牸鑺傜偣淇℃伅
      */
     private static class GridBlockInfo implements IGridBlock {
         private final TileEntityPatternExpander tile;
@@ -1167,7 +1174,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
 
         @Override
         public double getIdlePowerUsage() {
-            return 1.0; // 每tick消耗1AE
+            return 1.0; // 姣弔ick娑堣€?AE
         }
 
         @Override
@@ -1197,7 +1204,7 @@ public class TileEntityPatternExpander extends TileEntity implements IGridHost, 
 
         @Override
         public void setNetworkStatus(IGrid grid, int channelsInUse) {
-            // 网络状态更新
+            // 缃戠粶鐘舵€佹洿鏂?
         }
 
         @Override

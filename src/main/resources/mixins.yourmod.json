@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.wu_xiao_ya.defensive_mixin",
+  "refmap": "yourmod.refmap.json",
+  "mixins": [
+    "MixinRegistryManager"
+  ],
+  "client": [],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

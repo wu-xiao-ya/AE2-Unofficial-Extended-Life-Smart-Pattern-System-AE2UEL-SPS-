@@ -1,13 +1,15 @@
 {
-	"package": "com.lwx1145.techstart.mixin",
 	"required": true,
-	"refmap": "${mixin_refmap}",
-	"target": "@env(DEFAULT)",
-	"minVersion": "0.8.5",
-	"compatibilityLevel": "JAVA_8",
+	"minVersion": "0.8",
+	"package": "com.lwx1145.techstart.mixin",
+	"refmap": "techstart.refmap.json",
 	"mixins": [
-		"MixinDualityInterface"
+		"MixinDualityInterface",
+		"defensive_mixin.MixinRegistryManager"
 	],
+	"client": [],
 	"server": [],
-	"client": []
+	"injectors": {
+		"defaultRequire": 1
+	}
 }

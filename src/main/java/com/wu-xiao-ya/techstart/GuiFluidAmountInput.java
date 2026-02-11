@@ -1,5 +1,6 @@
 package com.lwx1145.techstart;
 
+
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -12,13 +13,15 @@ public class GuiFluidAmountInput extends GuiScreen {
     private final ContainerPatternEditor container;
     private final int slotId;
     private final int initialAmount;
+    private final String title;
     private GuiTextField amountField;
 
-    public GuiFluidAmountInput(GuiPatternEditor parent, ContainerPatternEditor container, int slotId, int initialAmount) {
+    public GuiFluidAmountInput(GuiPatternEditor parent, ContainerPatternEditor container, int slotId, int initialAmount, String title) {
         this.parent = parent;
         this.container = container;
         this.slotId = slotId;
         this.initialAmount = Math.max(1, initialAmount);
+        this.title = title == null || title.trim().isEmpty() ? "Set Amount" : title;
     }
 
     @Override
@@ -72,7 +75,7 @@ public class GuiFluidAmountInput extends GuiScreen {
         this.drawDefaultBackground();
         int centerX = this.width / 2;
         int centerY = this.height / 2;
-        this.drawCenteredString(this.fontRenderer, "Set Amount (mB)", centerX, centerY - 30, 0xFFFFFF);
+        this.drawCenteredString(this.fontRenderer, this.title, centerX, centerY - 30, 0xFFFFFF);
         this.amountField.drawTextBox();
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

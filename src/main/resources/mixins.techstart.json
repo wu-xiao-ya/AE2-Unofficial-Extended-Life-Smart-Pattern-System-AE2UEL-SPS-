@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.lwx1145.techstart.mixin",
+  "refmap": "techstart.refmap.json",
+  "mixins": [
+    "MixinDualityInterface",
+    "defensive_mixin.MixinRegistryManager"
+  ],
+  "client": [],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -21,7 +21,7 @@ import java.io.File;
 public class TechStart {
     public static final String MODID = "sampleintegration";
     public static final String NAME = "sampleintegration";
-    public static final String VERSION = "1.0.0";
+    public static final String VERSION = "1.0.3";
     
     public static final Logger LOGGER = LogManager.getLogger(NAME);
 
@@ -94,8 +94,6 @@ public class TechStart {
     
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
-        // 注册虚拟样板生成命令
-        event.registerServerCommand(new com.lwx1145.techstart.command.CommandGenerateVirtual());
         // 注册通配符样板展开命令
         event.registerServerCommand(new com.lwx1145.techstart.command.CommandExpandPattern());
     }

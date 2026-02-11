@@ -1,5 +1,6 @@
 package com.lwx1145.techstart;
 
+
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.helpers.DualityInterface;
 import net.minecraft.item.ItemStack;
@@ -9,8 +10,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 样板拦截器 - 手动实现Mixin功能
- * 通过反射拦截DualityInterface的craftingList，将通配符样板展开为19个虚拟样板
+ * 鏍锋澘鎷︽埅鍣?- 鎵嬪姩瀹炵幇Mixin鍔熻兘
+ * 閫氳繃鍙嶅皠鎷︽埅DualityInterface鐨刢raftingList锛屽皢閫氶厤绗︽牱鏉垮睍寮€涓?9涓櫄鎷熸牱鏉?
  */
 public class PatternInterceptor {
     
@@ -18,22 +19,22 @@ public class PatternInterceptor {
     
     static {
         try {
-            // 获取DualityInterface的craftingList字段
+            // 鑾峰彇DualityInterface鐨刢raftingList瀛楁
             craftingListField = DualityInterface.class.getDeclaredField("craftingList");
             craftingListField.setAccessible(true);
         } catch (Exception e) {
-            System.err.println("[PatternInterceptor] 无法获取craftingList字段: " + e.getMessage());
+            System.err.println("[PatternInterceptor] 鏃犳硶鑾峰彇craftingList瀛楁: " + e.getMessage());
             e.printStackTrace();
         }
     }
     
     /**
-     * 拦截并展开通配符样板
-     * 这个方法应该在DualityInterface.addToCraftingList()被调用时触发
+     * 鎷︽埅骞跺睍寮€閫氶厤绗︽牱鏉?
+     * 杩欎釜鏂规硶搴旇鍦―ualityInterface.addToCraftingList()琚皟鐢ㄦ椂瑙﹀彂
      * 
-     * @param duality DualityInterface实例
-     * @param stack 要添加的样板ItemStack
-     * @return 是否成功拦截（如果是通配符样板则返回true）
+     * @param duality DualityInterface瀹炰緥
+     * @param stack 瑕佹坊鍔犵殑鏍锋澘ItemStack
+     * @return 鏄惁鎴愬姛鎷︽埅锛堝鏋滄槸閫氶厤绗︽牱鏉垮垯杩斿洖true锛?
      */
     @SuppressWarnings("unchecked")
     public static boolean interceptAndExpand(DualityInterface duality, ItemStack stack) {
@@ -54,10 +55,10 @@ public class PatternInterceptor {
     }
     
     /**
-     * 清理通配符样板
-     * 在provideCrafting时调用，移除通配符样板（只保留虚拟样板）
+     * 娓呯悊閫氶厤绗︽牱鏉?
+     * 鍦╬rovideCrafting鏃惰皟鐢紝绉婚櫎閫氶厤绗︽牱鏉匡紙鍙繚鐣欒櫄鎷熸牱鏉匡級
      * 
-     * @param duality DualityInterface实例
+     * @param duality DualityInterface瀹炰緥
      */
     @SuppressWarnings("unchecked")
     public static void cleanupWildcardPatterns(DualityInterface duality) {
@@ -68,7 +69,7 @@ public class PatternInterceptor {
                 return;
             }
             
-            // 移除通配符样板
+            // 绉婚櫎閫氶厤绗︽牱鏉?
             craftingList.removeIf(pattern -> {
                 if (pattern instanceof SmartPatternDetails) {
                     SmartPatternDetails sp = (SmartPatternDetails) pattern;
@@ -80,7 +81,7 @@ public class PatternInterceptor {
             });
             
         } catch (Exception e) {
-            System.err.println("[PatternInterceptor] 清理失败: " + e.getMessage());
+            System.err.println("[PatternInterceptor] 娓呯悊澶辫触: " + e.getMessage());
             e.printStackTrace();
         }
     }

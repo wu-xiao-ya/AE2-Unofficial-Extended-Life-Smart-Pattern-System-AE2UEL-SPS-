@@ -1,5 +1,6 @@
 package com.lwx1145.techstart.mixin;
 
+
 import appeng.helpers.DualityInterface;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import com.lwx1145.techstart.ItemTest;
@@ -23,7 +24,7 @@ public abstract class MixinDualityInterface {
     private Set<ICraftingPatternDetails> craftingList;
 
     /**
-     * 当 AE 接口收集样板时，处理通配符样板展开
+     * 褰?AE 鎺ュ彛鏀堕泦鏍锋澘鏃讹紝澶勭悊閫氶厤绗︽牱鏉垮睍寮€
      */
     @Inject(method = "addToCraftingList(Lnet/minecraft/item/ItemStack;)V", at = @At("HEAD"), cancellable = true, remap = false)
     private void techstart$expandWildcardPatterns(ItemStack stack, CallbackInfo ci) {
@@ -50,7 +51,7 @@ public abstract class MixinDualityInterface {
             return;
         }
 
-        // 移除通配符样板（只保留虚拟样板）
+        // 绉婚櫎閫氶厤绗︽牱鏉匡紙鍙繚鐣欒櫄鎷熸牱鏉匡級
         craftingList.removeIf(pattern -> {
             if (pattern instanceof SmartPatternDetails) {
                 SmartPatternDetails sp = (SmartPatternDetails) pattern;
@@ -58,7 +59,7 @@ public abstract class MixinDualityInterface {
                     return true;
                 }
             }
-            // 移除包装器
+            // 绉婚櫎鍖呰鍣?
             if (pattern instanceof WildcardPatternWrapper) {
                 return true;
             }

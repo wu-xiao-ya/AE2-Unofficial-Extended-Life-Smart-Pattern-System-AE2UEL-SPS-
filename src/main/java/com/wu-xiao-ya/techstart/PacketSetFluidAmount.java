@@ -1,5 +1,6 @@
 package com.lwx1145.techstart;
 
+
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -41,7 +42,7 @@ public class PacketSetFluidAmount implements IMessage {
                 }
                 ContainerPatternEditor container = (ContainerPatternEditor) player.openContainer;
                 int amount = Math.max(1, message.amount);
-                container.applyFluidAmountToSlot(message.slotId, amount);
+                container.applyMarkerAmountToSlot(message.slotId, amount);
             });
             return null;
         }

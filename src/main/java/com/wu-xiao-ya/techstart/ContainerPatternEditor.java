@@ -1,12 +1,13 @@
-// ???????
 package com.lwx1145.techstart;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.play.server.SPacketSetSlot;
 import net.minecraftforge.oredict.OreDictionary;
 import net.minecraft.util.NonNullList;
 import net.minecraftforge.fluids.FluidRegistry;
@@ -17,6 +18,7 @@ import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import java.util.ArrayList;
 import java.util.List;
 import java.lang.reflect.Method;
+import net.minecraftforge.fml.common.Loader;
 
 public class ContainerPatternEditor extends Container {
 
@@ -25,6 +27,8 @@ public class ContainerPatternEditor extends Container {
     private static final int TOTAL_PATTERN_SLOTS = INPUT_SLOTS + OUTPUT_SLOTS;
     private static final int DEFAULT_FLUID_AMOUNT = 1000;
     private static final int DEFAULT_GAS_AMOUNT = 1000;
+    private static final String TAG_ITEM_MARKER = "TechStartItemMarker";
+    private static final String TAG_ITEM_AMOUNT = "TechStartItemAmount";
 
     private static Method cachedFakeFluidCheck;
     private static Method cachedFakeFluidDisplay;
@@ -137,6 +141,33 @@ public class ContainerPatternEditor extends Container {
         return patternStack;
     }
 
+    public int getFilterMode() {
+        return ItemTest.getFilterModeStatic(patternStack);
+    }
+
+    public List<String> getFilterEntries() {
+        return ItemTest.getFilterEntriesStatic(patternStack);
+    }
+
+    public void applyFilterMode(int mode) {
+        ItemTest.setFilterModeStatic(patternStack, mode);
+        this.player.inventory.markDirty();
+    }
+
+    public void toggleFilterEntry(String entry) {
+        ItemTest.toggleFilterEntryStatic(patternStack, entry);
+        this.player.inventory.markDirty();
+    }
+
+    public void clearFilterEntries() {
+        ItemTest.clearFilterEntriesStatic(patternStack);
+        this.player.inventory.markDirty();
+    }
+
+    private void markDirty() {
+        this.player.inventory.markDirty();
+    }
+
     /**
      * ??????
      */
@@ -194,6 +225,7 @@ public class ContainerPatternEditor extends Container {
     public void setSelectedRecipeType(int index) {
         this.selectedRecipeType = index;
         encodeSelectedPattern();
+        markDirty();
     }
 
     public List<String[]> getAvailableRecipeTypes() {
@@ -313,6 +345,10 @@ public class ContainerPatternEditor extends Container {
             // 无流体，使用原有的setEncodedItem方法
             patternItem.setEncodedItem(patternStack, inputOreName, outputOreName, displayName, inputCount, outputCount);
         }
+    }
+
+    public void savePattern() {
+        encodeSelectedPattern();
     }
 
     /**
@@ -556,15 +592,54 @@ public class ContainerPatternEditor extends Container {
         return Math.max(1, fallback);
     }
 
+    private int getItemMarkerAmount(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return 1;
+        }
+        if (stack.hasTagCompound() && stack.getTagCompound().hasKey(TAG_ITEM_AMOUNT)) {
+            int value = stack.getTagCompound().getInteger(TAG_ITEM_AMOUNT);
+            return Math.max(1, value);
+        }
+        return Math.max(1, stack.getCount());
+    }
+
+    private ItemStack createItemMarkerStack(ItemStack source, int amount) {
+        if (source == null || source.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack marker = source.copy();
+        marker.setCount(1);
+        NBTTagCompound tag = marker.hasTagCompound() ? marker.getTagCompound() : new NBTTagCompound();
+        tag.setBoolean(TAG_ITEM_MARKER, true);
+        tag.setInteger(TAG_ITEM_AMOUNT, Math.max(1, amount));
+        marker.setTagCompound(tag);
+        return marker;
+    }
+
     private static void initGasMethods() {
         if (gasMethodsReady) {
             return;
         }
         gasMethodsReady = true;
+        // 如果 Mekanism 未安装，则不尝试反射加载其类，防止 NoClassDefFoundError
+        if (!Loader.isModLoaded("mekanism")) {
+            cachedGasItemClass = null;
+            cachedGasItemGetGas = null;
+            cachedGasStackGetGas = null;
+            cachedGasStackGetAmount = null;
+            cachedGasStackAmountField = null;
+            cachedGasStackCtor = null;
+            cachedGasGetName = null;
+            cachedDummyGasItemClass = null;
+            cachedDummyGasSetGas = null;
+            cachedDummyGasGetGas = null;
+            cachedGasRegistryGetGas = null;
+            return;
+        }
         try {
             cachedGasItemClass = Class.forName("mekanism.api.gas.IGasItem");
             cachedGasItemGetGas = cachedGasItemClass.getMethod("getGas", ItemStack.class);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             cachedGasItemClass = null;
             cachedGasItemGetGas = null;
         }
@@ -587,7 +662,7 @@ public class ContainerPatternEditor extends Container {
             } catch (Exception e) {
                 cachedGasStackCtor = null;
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             cachedGasStackGetGas = null;
             cachedGasStackGetAmount = null;
             cachedGasStackAmountField = null;
@@ -596,14 +671,14 @@ public class ContainerPatternEditor extends Container {
         try {
             Class<?> gasClass = Class.forName("mekanism.api.gas.Gas");
             cachedGasGetName = gasClass.getMethod("getName");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             cachedGasGetName = null;
         }
         try {
             cachedDummyGasItemClass = Class.forName("com.mekeng.github.common.item.ItemDummyGas");
             cachedDummyGasSetGas = cachedDummyGasItemClass.getMethod("setGasStack", ItemStack.class, Class.forName("mekanism.api.gas.GasStack"));
             cachedDummyGasGetGas = cachedDummyGasItemClass.getMethod("getGasStack", ItemStack.class);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             cachedDummyGasItemClass = null;
             cachedDummyGasSetGas = null;
             cachedDummyGasGetGas = null;
@@ -611,7 +686,7 @@ public class ContainerPatternEditor extends Container {
         try {
             Class<?> gasRegistryClass = Class.forName("mekanism.api.gas.GasRegistry");
             cachedGasRegistryGetGas = gasRegistryClass.getMethod("getGas", String.class);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             cachedGasRegistryGetGas = null;
         }
     }
@@ -643,11 +718,18 @@ public class ContainerPatternEditor extends Container {
         }
         fakeGasMethodsReady = true;
         initFakeFluidMethods();
+        // 如果 Mekanism 未安装，直接跳过对气体相关反射的加载，避免在缺失依赖时触发 ClassNotFound/NoClassDefFound 错误
+        if (!Loader.isModLoaded("mekanism")) {
+            cachedFakeGasCheck = null;
+            cachedFakeGasDisplay = null;
+            return;
+        }
         try {
+            Class.forName("mekanism.api.gas.GasStack");
             Class<?> fakeGases = Class.forName("com.glodblock.github.integration.mek.FakeGases");
             cachedFakeGasCheck = fakeGases.getMethod("isGasFakeItem", ItemStack.class);
             cachedFakeGasDisplay = fakeGases.getMethod("displayGas", Class.forName("mekanism.api.gas.GasStack"));
-        } catch (Exception e) {
+        } catch (Throwable e) {
             cachedFakeGasCheck = null;
             cachedFakeGasDisplay = null;
         }
@@ -856,21 +938,36 @@ public class ContainerPatternEditor extends Container {
             return derivedRecipes;
         }
 
-        // 只为相同材料的输入输出生成配方
-        if (inputMaterial.equals(outputMaterial)) {
-            String derivedInputOre = inputBaseType + inputMaterial;
-            String derivedOutputOre = outputBaseType + outputMaterial;
+        // 收集所有同时存在输入/输出类型的材料，生成类比配方
+        java.util.Set<String> inputMaterials = new java.util.LinkedHashSet<>();
+        java.util.Set<String> outputMaterials = new java.util.LinkedHashSet<>();
+        for (String oreName : OreDictionary.getOreNames()) {
+            if (oreName.startsWith(inputBaseType)) {
+                inputMaterials.add(oreName.substring(inputBaseType.length()));
+            }
+            if (oreName.startsWith(outputBaseType)) {
+                outputMaterials.add(oreName.substring(outputBaseType.length()));
+            }
+        }
+        inputMaterials.retainAll(outputMaterials);
 
-            // 检查这些矿物辞典条目是否存在
-            if (OreDictionary.doesOreNameExist(derivedInputOre) &&
-                OreDictionary.doesOreNameExist(derivedOutputOre)) {
+        if (inputMaterials.isEmpty()) {
+            return derivedRecipes;
+        }
 
-                List<ItemStack> inputItems = OreDictionary.getOres(derivedInputOre);
-                List<ItemStack> outputItems = OreDictionary.getOres(derivedOutputOre);
-
-                if (!inputItems.isEmpty() && !outputItems.isEmpty()) {
-                    derivedRecipes.add(new ItemStack[]{inputItems.get(0), outputItems.get(0)});
-                }
+        for (String material : inputMaterials) {
+            if (material == null || material.isEmpty()) {
+                continue;
+            }
+            String derivedInputOre = inputBaseType + material;
+            String derivedOutputOre = outputBaseType + material;
+            if (!OreDictionary.doesOreNameExist(derivedInputOre) || !OreDictionary.doesOreNameExist(derivedOutputOre)) {
+                continue;
+            }
+            List<ItemStack> inputItems = OreDictionary.getOres(derivedInputOre);
+            List<ItemStack> outputItems = OreDictionary.getOres(derivedOutputOre);
+            if (!inputItems.isEmpty() && !outputItems.isEmpty()) {
+                derivedRecipes.add(new ItemStack[]{inputItems.get(0), outputItems.get(0)});
             }
         }
 
@@ -976,7 +1073,7 @@ public class ContainerPatternEditor extends Container {
                 return;
             }
             inputOres.add(baseType + "*");
-            inputCounts.add(stack.getCount());
+            inputCounts.add(getItemMarkerAmount(stack));
         }
 
         List<String> outputOres = new ArrayList<>();
@@ -998,7 +1095,7 @@ public class ContainerPatternEditor extends Container {
                 return;
             }
             outputOres.add(baseType + "*");
-            outputCounts.add(stack.getCount());
+            outputCounts.add(getItemMarkerAmount(stack));
         }
 
         String displayName = inputStacks.get(0).getDisplayName() + " → " + outputStacks.get(0).getDisplayName();
@@ -1109,7 +1206,7 @@ public class ContainerPatternEditor extends Container {
                 if (oreName != null && !oreName.isEmpty()) {
                     String wildcardOre = toWildcardPattern(oreName);
                     inputOres.add(wildcardOre);
-                    inputCounts.add(stack.getCount());
+                    inputCounts.add(getItemMarkerAmount(stack));
                 }
             }
         }
@@ -1144,7 +1241,7 @@ public class ContainerPatternEditor extends Container {
                 if (oreName != null && !oreName.isEmpty()) {
                     String wildcardOre = toWildcardPattern(oreName);
                     outputOres.add(wildcardOre);
-                    outputCounts.add(stack.getCount());
+                    outputCounts.add(getItemMarkerAmount(stack));
                 }
             }
         }
@@ -1206,17 +1303,20 @@ public class ContainerPatternEditor extends Container {
     public ItemStack slotClick(int slotId, int dragType, net.minecraft.inventory.ClickType clickTypeIn, EntityPlayer player) {
         if (slotId >= 0 && slotId < this.inventorySlots.size() && isPatternSlotId(slotId)) {
             Slot slot = this.inventorySlots.get(slotId);
+            if (clickTypeIn != net.minecraft.inventory.ClickType.PICKUP) {
+                return player.inventory.getItemStack();
+            }
             if (clickTypeIn == net.minecraft.inventory.ClickType.PICKUP) {
                 boolean handled = false;
                 ItemStack slotStack = slot.getStack();
                 if (!slotStack.isEmpty() && isMarkerStack(slotStack)) {
-                    if (dragType == 0) {
+                    if (dragType == 0 || dragType == 1) {
                         slot.putStack(ItemStack.EMPTY);
                         slot.onSlotChanged();
                         handled = true;
                     }
                 }
-                if (!handled && dragType == 0 && slotStack.isEmpty()) {
+                if (!handled && (dragType == 0 || dragType == 1) && slotStack.isEmpty()) {
                     ItemStack carried = player.inventory.getItemStack();
                     if (!carried.isEmpty() && !isMarkerStack(carried)) {
                         FluidInfo carriedFluid = extractFluidFromContainer(carried);
@@ -1238,14 +1338,31 @@ public class ContainerPatternEditor extends Container {
                                 }
                             }
                         }
+                        if (!handled && isOreDictItem(carried)) {
+                            ItemStack marker = createItemMarkerStack(carried, 1);
+                            if (!marker.isEmpty()) {
+                                slot.putStack(marker);
+                                slot.onSlotChanged();
+                                handled = true;
+                            }
+                        }
                     }
                 }
                 if (handled) {
+                    markDirty();
                     return player.inventory.getItemStack();
                 }
             }
         }
         return super.slotClick(slotId, dragType, clickTypeIn, player);
+    }
+
+    @Override
+    public boolean canDragIntoSlot(Slot slotIn) {
+        if (slotIn != null && isPatternSlotId(slotIn.slotNumber)) {
+            return false;
+        }
+        return super.canDragIntoSlot(slotIn);
     }
 
     @Override
@@ -1256,6 +1373,9 @@ public class ContainerPatternEditor extends Container {
         if (slot != null && slot.getHasStack()) {
             ItemStack itemstack1 = slot.getStack();
             if (index < TOTAL_PATTERN_SLOTS && isMarkerStack(itemstack1)) {
+                return ItemStack.EMPTY;
+            }
+            if (index >= TOTAL_PATTERN_SLOTS) {
                 return ItemStack.EMPTY;
             }
             itemstack = itemstack1.copy();
@@ -1314,20 +1434,8 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public boolean isItemValid(ItemStack stack) {
-            // 允许矿物辞典物品或流体容器
             if (stack.isEmpty()) return false;
-
-            if (isMarkerStack(stack)) {
-                return true;
-            }
-
-            // 检查是否是矿物辞典物品
-            int[] oreIds = OreDictionary.getOreIDs(stack);
-            if (oreIds.length > 0) {
-                return true;
-            }
-            
-            return false;
+            return isMarkerStack(stack);
         }
 
         @Override
@@ -1372,7 +1480,10 @@ public class ContainerPatternEditor extends Container {
             container.setSelectedRecipeType(0);
             // 更新派生配方
             container.updateDerivedRecipes();
-            container.encodeSmartPattern();
+            if (!container.player.world.isRemote) {
+                container.encodePatternOnClose();
+                container.syncPatternToClient();
+            }
         }
     }
 
@@ -1393,7 +1504,29 @@ public class ContainerPatternEditor extends Container {
     }
 
     public boolean isMarkerStack(ItemStack stack) {
-        return isFakeFluidItem(stack) || isGasMarkerStack(stack);
+        return isFakeFluidItem(stack) || isGasMarkerStack(stack) || isItemMarkerStack(stack);
+    }
+
+    public boolean isItemMarkerStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) {
+            return false;
+        }
+        return stack.getTagCompound().getBoolean(TAG_ITEM_MARKER);
+    }
+
+    public int getMarkerAmountForSlot(int slotId) {
+        if (!isPatternSlotId(slotId)) {
+            return 1;
+        }
+        Slot slot = this.inventorySlots.get(slotId);
+        if (slot == null) {
+            return 1;
+        }
+        ItemStack stack = slot.getStack();
+        if (isItemMarkerStack(stack)) {
+            return getItemMarkerAmount(stack);
+        }
+        return getFluidAmountForSlot(slotId);
     }
 
     public int getFluidAmountForSlot(int slotId) {
@@ -1415,7 +1548,7 @@ public class ContainerPatternEditor extends Container {
         return info.amount;
     }
 
-    public void applyFluidAmountToSlot(int slotId, int amount) {
+    public void applyMarkerAmountToSlot(int slotId, int amount) {
         if (!isPatternSlotId(slotId)) {
             return;
         }
@@ -1424,6 +1557,19 @@ public class ContainerPatternEditor extends Container {
             return;
         }
         ItemStack current = slot.getStack();
+        if (isItemMarkerStack(current)) {
+            ItemStack marker = createItemMarkerStack(current, Math.max(1, amount));
+            if (marker.isEmpty()) {
+                return;
+            }
+            slot.putStack(marker);
+            slot.onSlotChanged();
+            if (!player.world.isRemote) {
+                encodePatternOnClose();
+                syncPatternToClient();
+            }
+            return;
+        }
         if (isFakeFluidItem(current)) {
             FluidInfo info = extractFluidFromStack(current);
             if (info == null || info.fluidName == null || info.fluidName.isEmpty()) {
@@ -1435,6 +1581,10 @@ public class ContainerPatternEditor extends Container {
             }
             slot.putStack(marker);
             slot.onSlotChanged();
+            if (!player.world.isRemote) {
+                encodePatternOnClose();
+                syncPatternToClient();
+            }
             return;
         }
         if (isGasMarkerStack(current)) {
@@ -1448,6 +1598,31 @@ public class ContainerPatternEditor extends Container {
             }
             slot.putStack(marker);
             slot.onSlotChanged();
+            if (!player.world.isRemote) {
+                encodePatternOnClose();
+                syncPatternToClient();
+            }
+        }
+    }
+
+    private void syncPatternToClient() {
+        if (!(player instanceof EntityPlayerMP)) {
+            return;
+        }
+        EntityPlayerMP mp = (EntityPlayerMP) player;
+        mp.inventory.markDirty();
+        detectAndSendChanges();
+
+        int hotbarSlot = mp.inventory.currentItem;
+        int containerSlot = TOTAL_PATTERN_SLOTS + 27 + hotbarSlot;
+        if (containerSlot >= 0 && containerSlot < this.inventorySlots.size()) {
+            ItemStack stack = mp.inventory.getStackInSlot(hotbarSlot);
+            mp.connection.sendPacket(new SPacketSetSlot(this.windowId, containerSlot, stack));
+        }
+
+        ItemStack offhand = mp.getHeldItemOffhand();
+        if (!offhand.isEmpty() && offhand.getItem() instanceof ItemTest) {
+            mp.connection.sendPacket(new SPacketSetSlot(0, 45, offhand));
         }
     }
 
@@ -1464,20 +1639,8 @@ public class ContainerPatternEditor extends Container {
 
         @Override
         public boolean isItemValid(ItemStack stack) {
-            // 允许矿物辞典物品或流体容器
             if (stack.isEmpty()) return false;
-
-            if (isMarkerStack(stack)) {
-                return true;
-            }
-
-            // 检查是否是矿物辞典物品
-            int[] oreIds = OreDictionary.getOreIDs(stack);
-            if (oreIds.length > 0) {
-                return true;
-            }
-            
-            return false;
+            return isMarkerStack(stack);
         }
 
         @Override
@@ -1522,7 +1685,10 @@ public class ContainerPatternEditor extends Container {
             container.setSelectedRecipeType(0);
             // 更新派生配方
             container.updateDerivedRecipes();
-            container.encodeSmartPattern();
+            if (!container.player.world.isRemote) {
+                container.encodePatternOnClose();
+                container.syncPatternToClient();
+            }
         }
     }
 

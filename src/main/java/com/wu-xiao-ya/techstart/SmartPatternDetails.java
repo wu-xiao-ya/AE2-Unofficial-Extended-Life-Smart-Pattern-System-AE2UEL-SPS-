@@ -379,6 +379,17 @@ public class SmartPatternDetails implements ICraftingPatternDetails {
         return false;
     }
 
+    public boolean isAllowedByFilter() {
+        List<String> entries = ItemTest.getFilterEntriesStatic(patternStack);
+        if (entries == null || entries.isEmpty()) {
+            return true;
+        }
+        int mode = ItemTest.getFilterModeStatic(patternStack);
+        String id = inputOreName + "->" + outputOreName;
+        boolean contains = entries.contains(id);
+        return mode == ItemTest.FILTER_MODE_BLACKLIST ? !contains : contains;
+    }
+
     /**
      * 将通配符样板展开为多个虚拟样板（每个材料一个）
      * 仅用于通配符样板

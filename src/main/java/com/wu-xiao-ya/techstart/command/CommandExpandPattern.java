@@ -1,5 +1,6 @@
 package com.lwx1145.techstart.command;
 
+
 import com.lwx1145.techstart.ItemTest;
 import com.lwx1145.techstart.SmartPatternDetails;
 import com.lwx1145.techstart.TechStart;
@@ -16,8 +17,8 @@ import net.minecraft.util.text.TextComponentString;
 import java.util.List;
 
 /**
- * 命令：/expandpattern
- * 将玩家手中的通配符样板展开为19个虚拟样板并放入玩家背包
+ * 鍛戒护锛?expandpattern
+ * 灏嗙帺瀹舵墜涓殑閫氶厤绗︽牱鏉垮睍寮€涓?9涓櫄鎷熸牱鏉垮苟鏀惧叆鐜╁鑳屽寘
  */
 public class CommandExpandPattern extends CommandBase {
 
@@ -28,18 +29,18 @@ public class CommandExpandPattern extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/expandpattern - 将手中的通配符样板展开为19个虚拟样板";
+        return "/expandpattern - Expand the wildcard pattern in your hand into virtual patterns.";
     }
 
     @Override
     public int getRequiredPermissionLevel() {
-        return 0; // 所有玩家都可以使用
+        return 0; // 鎵€鏈夌帺瀹堕兘鍙互浣跨敤
     }
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         if (!(sender instanceof EntityPlayerMP)) {
-            sender.sendMessage(new TextComponentString("§c此命令只能由玩家执行！"));
+            sender.sendMessage(new TextComponentString("Only players can run this command."));
             return;
         }
 
@@ -47,12 +48,12 @@ public class CommandExpandPattern extends CommandBase {
         ItemStack heldStack = player.getHeldItemMainhand();
 
         if (heldStack.isEmpty() || !(heldStack.getItem() instanceof ItemTest)) {
-            player.sendMessage(new TextComponentString("§c请手持一个智能样板！"));
+            player.sendMessage(new TextComponentString("Hold a smart pattern in your main hand."));
             return;
         }
 
         if (!ItemTest.hasEncodedItemStatic(heldStack)) {
-            player.sendMessage(new TextComponentString("§c这个样板没有编码！"));
+            player.sendMessage(new TextComponentString("This pattern is not encoded."));
             return;
         }
 
@@ -60,35 +61,35 @@ public class CommandExpandPattern extends CommandBase {
         String outputOre = ItemTest.getOutputOreNameStatic(heldStack);
 
         if (!inputOre.contains("*") && !outputOre.contains("*")) {
-            player.sendMessage(new TextComponentString("§c这不是通配符样板！"));
+            player.sendMessage(new TextComponentString("This is not a wildcard pattern."));
             return;
         }
 
-        player.sendMessage(new TextComponentString("§a正在展开通配符样板: " + inputOre + " → " + outputOre));
+        player.sendMessage(new TextComponentString("Expanding wildcard pattern: " + inputOre + " -> " + outputOre));
 
-        // 创建主样板并展开
+        // 鍒涘缓涓绘牱鏉垮苟灞曞紑
         SmartPatternDetails mainPattern = new SmartPatternDetails(heldStack);
         List<SmartPatternDetails> virtualPatterns = mainPattern.expandToVirtualPatterns();
 
-        player.sendMessage(new TextComponentString("§a展开为 " + virtualPatterns.size() + " 个虚拟样板"));
+        player.sendMessage(new TextComponentString("Expanded into " + virtualPatterns.size() + " virtual patterns."));
 
-        // 为每个虚拟样板创建ItemStack
+        // 涓烘瘡涓櫄鎷熸牱鏉垮垱寤篒temStack
         int addedCount = 0;
         for (SmartPatternDetails virtualPattern : virtualPatterns) {
-            // 直接从虚拟样板的patternStack复制
+            // 鐩存帴浠庤櫄鎷熸牱鏉跨殑patternStack澶嶅埗
             ItemStack virtualStack = virtualPattern.getPattern().copy();
             
-            // 尝试添加到玩家背包
+            // 灏濊瘯娣诲姞鍒扮帺瀹惰儗鍖?
             if (!player.inventory.addItemStackToInventory(virtualStack)) {
-                // 背包满了，掉落到地上
+                // 鑳屽寘婊′簡锛屾帀钀藉埌鍦颁笂
                 player.dropItem(virtualStack, false);
             }
             addedCount++;
         }
 
-        player.sendMessage(new TextComponentString("§a成功创建 " + addedCount + " 个虚拟样板！"));
+        player.sendMessage(new TextComponentString("Created " + addedCount + " virtual patterns."));
         
-        // 移除手中的通配符样板
+        // 绉婚櫎鎵嬩腑鐨勯€氶厤绗︽牱鏉?
         heldStack.shrink(1);
     }
 }

@@ -1,5 +1,6 @@
 package com.lwx1145.techstart;
 
+
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
@@ -81,7 +82,7 @@ public class OreDictRecipeCache {
                 continue;
             }
 
-            String displayName = inputItems.get(0).getDisplayName() + " → " + outputItems.get(0).getDisplayName();
+            String displayName = inputItems.get(0).getDisplayName() + " 鈫?" + outputItems.get(0).getDisplayName();
             addRecipe(recipes, seenPairs, inputOre, outputOre, displayName);
         }
 
@@ -165,9 +166,9 @@ public class OreDictRecipeCache {
         List<ItemStack> inputItems = OreDictionary.getOres(inputOre);
         List<ItemStack> outputItems = OreDictionary.getOres(outputOre);
         if (!inputItems.isEmpty() && !outputItems.isEmpty()) {
-            return inputItems.get(0).getDisplayName() + " → " + outputItems.get(0).getDisplayName();
+            return inputItems.get(0).getDisplayName() + " 鈫?" + outputItems.get(0).getDisplayName();
         }
-        return inputOre + " → " + outputOre;
+        return inputOre + " 鈫?" + outputOre;
     }
 
     private static void addRecipe(List<String[]> recipes, Set<String> seenPairs,
