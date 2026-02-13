@@ -4,6 +4,51 @@
 
 ---
 
+## [1.0.4] - 2026-02-13
+
+### Added
+- JEI ghost ingredient drag-and-drop support for pattern editor slots.
+- Network sync packet for client ghost placement to server-side slot state.
+- Fluid/gas marker conversion path when dragging compatible containers.
+
+### Changed
+- Right-click interaction on `BlockPatternExpander` now avoids accidental block-place attempts when not holding a smart pattern.
+- Prompt text on pattern expander switched to localization key (`message.sampleintegration.no_pattern`), enabling language-pack display.
+- Java source tree unified under `src/main/java/com/lwx1145/techstart` to match package declarations.
+- Workspace cleanup: removed temporary/debug logs and redundant temp folders.
+
+### Fixed
+- MMCE pattern provider acceptance path for smart pattern insertion.
+- Packet registration completeness to prevent missing-handler runtime failures.
+- Corrupted comments replaced and normalized to maintain readable source documentation.
+
+### Build
+- Verified `compileJava` and `jar` pass after source tree reorganization.
+- Full `build` may fail if `build/rfg/recompiled_minecraft-1.12.2.jar` is locked by another process.
+
+---
+
+## [1.0.2] - 2026-02-10
+
+### ✨ 新增功能
+- **气体/流体样板支持**: 支持流体与气体标记、数量输入与样板保存
+- **AE2FC 气体兼容**: 使用 AE2FC FakeGases 与 Mekanism CE 气体注册名对接下单与显示
+- **三合一接口支持**: 兼容 AE2FC 的 TileTrioInterface/PartTrioInterface 扫描与发配
+
+### 🐛 修复
+- **下单卡合成单元**: 修复 DualityInterface.craftingList 为空导致的发配失败
+- **气体显示与请求不一致**: 统一气体标记与 AE 请求的数据来源
+
+---
+
+## [1.0.1-Alpha] - 2026-02-07
+
+### 🐛 修复
+- **合成表修复**: 修正 JSON 配方物品引用格式，确保配方能在 1.12.2 正常加载
+- **新增扩展器配方**: 为样板扩展器补充合成表，保证两件物品均可合成
+
+---
+
 ## [1.0.0] - 2026-02-06
 
 ### ✨ 新增功能
