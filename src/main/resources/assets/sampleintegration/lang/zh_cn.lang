@@ -8,7 +8,7 @@ tile.sampleintegration.pattern_expander.name=样板扩展器
 tile.sampleintegration.pattern_expander.desc=用于编辑和管理智能样板的专用方块
 
 # GUI
-gui.sampleintegration.pattern_editor=智能样板编辑器
+gui.sampleintegration.pattern_editor=§6智能样板编辑器
 gui.sampleintegration.input=输入
 gui.sampleintegration.output=输出
 

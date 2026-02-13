@@ -7,7 +7,7 @@ item.sampleintegration.pattern_integrations.desc1=Automatically expands to 19 me
 tile.sampleintegration.pattern_expander.name=Pattern Expander
 tile.sampleintegration.pattern_expander.desc=Dedicated block for editing and managing smart patterns
 # GUI
-gui.sampleintegration.pattern_editor=Smart Pattern Editor
+gui.sampleintegration.pattern_editor=§6Smart Pattern Editor
 gui.sampleintegration.input=Input
 gui.sampleintegration.output=Output
 
