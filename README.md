@@ -1,15 +1,24 @@
-# AE2UEL 智能样板系统 (Smart Pattern System)
+﻿# AE2UEL 智能样板系统 (Smart Pattern System)
 *AE2 Unofficial Extended Life 智能样板系统 - 基于矿物辞典的通配符合成样板*
 
-> 🧪 **v1.0.4 发布！** 详见 [发布指南](RELEASE_GUIDE.md) 和 [更新日志](CHANGELOG.md)
+> 🧪 **v1.0.5 发布！** 详见 [发布指南](RELEASE_GUIDE.md) 和 [更新日志](CHANGELOG.md)
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.12.2-green.svg)](https://www.minecraft.net/)
 [![Forge](https://img.shields.io/badge/Forge-14.23.5.2847-red.svg)](https://files.minecraftforge.net/)
 [![Java](https://img.shields.io/badge/Java-8+-blue.svg)](https://adoptium.net/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.4-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.0.5-orange.svg)](CHANGELOG.md)
 
 一个为 AE2UEL (Applied Energistics 2 Unofficial Extended Life) 设计的智能样板系统，通过矿物辞典实现通配符匹配，让单个样板可以自动匹配整个矿物辞典系列（如所有金属锭→板的转换）。
+
+## v1.0.5 更新摘要
+- 新增 JEI 幽灵物品拖拽到样板槽位，并通过网络包同步到服务端。
+- 新增 MMCE 兼容层：`ItemStack.EMPTY`、`JsonUtils` 签名兼容，以及样板供应器 GUI lambda 兼容钩子。
+- 修复 MMCE 预加载 `NoSuchMethodError` 与样板供应器界面校验错误导致的打开失败。
+- 修复 MMCE 中样板集成会影响同控制器其它样板生效的问题。
+- GUI 贴图拆分：智能样板编辑器独立使用 `pattern_editor_smart.png`。
+- GUI 背景绘制加入 `+2px` X 偏移，保持你修复贴图前后的槽位视觉对齐。
+- 配置扩展：支持通过 `customOrePrefixes` 增加新的矿辞前缀类型（如 `ore`）。
 
 ## ✨ 核心特性
 
@@ -107,6 +116,7 @@
 - **问题反馈**: 在 GitHub 提交 Issue
 - **功能建议**: 在 GitHub 提交 Feature Request
 
-**版本**: v1.0.4 | **Minecraft**: 1.12.2 | **Forge**: 14.23.5.2847+ | **AE2UEL**: 兼容版本
+**版本**: v1.0.5 | **Minecraft**: 1.12.2 | **Forge**: 14.23.5.2847+ | **AE2UEL**: 兼容版本
 
 *基于 CleanroomMC 的 RetroFuturaGradle 构建* | *完全开源，MIT 许可*
+
