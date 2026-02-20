@@ -1,18 +1,57 @@
 # Items
 item.sampleintegration.pattern_integrations.name=Smart Pattern
 item.sampleintegration.pattern_integrations.desc0=Wildcard Pattern Item based on Ore Dictionary
-item.sampleintegration.pattern_integrations.desc1=Automatically expands to 19 metal crafting recipes
+item.sampleintegration.pattern_integrations.desc1=Automatically expands to all registered metal recipes
 
 # Blocks
 tile.sampleintegration.pattern_expander.name=Pattern Expander
 tile.sampleintegration.pattern_expander.desc=Dedicated block for editing and managing smart patterns
+
 # GUI
-gui.sampleintegration.pattern_editor=§6Smart Pattern Editor
+gui.sampleintegration.pattern_editor=Smart Pattern Editor
+gui.sampleintegration.pattern_filter=Blacklist / Whitelist
 gui.sampleintegration.input=Input
 gui.sampleintegration.output=Output
+gui.sampleintegration.mode=Mode: %s
+gui.sampleintegration.mode.blacklist=Blacklist
+gui.sampleintegration.mode.whitelist=Whitelist
+gui.sampleintegration.tip_marker=Tip: place a fluid/gas container to add a marker
+gui.sampleintegration.switch_to_filter=Switch to blacklist/whitelist mode
+gui.sampleintegration.switch_to_editor=Switch to smart pattern mode
+gui.sampleintegration.toggle_filter_mode=Toggle blacklist/whitelist
+gui.sampleintegration.amount.set=Set Amount
+gui.sampleintegration.amount.set_mb=Set Amount (mB)
+gui.sampleintegration.filter.empty_line=%s: <empty>
+gui.sampleintegration.filter.ore_line=%s: %s
+gui.sampleintegration.filter.more=- ...
 
 # Messages
-message.sampleintegration.pattern_cleared=§aPattern cleared
-message.sampleintegration.hint_edit=§eHint: Place this item in the Pattern Expander block to edit
-message.sampleintegration.no_pattern=§cPlease hold a Smart Pattern item
-message.sampleintegration.pattern_saved=§aPattern saved
+message.sampleintegration.pattern_cleared=Pattern data cleared
+message.sampleintegration.hint_edit=Hint: Put this item into the Pattern Expander block to edit
+message.sampleintegration.no_pattern=Please hold a Smart Pattern item
+message.sampleintegration.pattern_saved=Pattern saved
+message.sampleintegration.invalid_amount=Invalid amount
+
+# Tooltips
+tooltip.sampleintegration.encoded=Encoded: %s
+tooltip.sampleintegration.input_ore=Input %s: %s x%s
+tooltip.sampleintegration.input_fluid=Fluid In %s: %s x%smB
+tooltip.sampleintegration.input_gas=Gas In %s: %s x%smB
+tooltip.sampleintegration.output_ore=Output %s: %s x%s
+tooltip.sampleintegration.output_fluid=Fluid Out %s: %s x%smB
+tooltip.sampleintegration.output_gas=Gas Out %s: %s x%smB
+tooltip.sampleintegration.ore_type=Ore Type: %s
+tooltip.sampleintegration.open_editor=Right-click to open editor
+tooltip.sampleintegration.open_pattern_editor=Right-click to open pattern editor
+tooltip.sampleintegration.mark_hint=Put ore dictionary items, fluid or gas containers in the GUI to mark.
+
+# Commands
+command.sampleintegration.expandpattern.usage=/expandpattern - Expand the wildcard pattern in your hand into virtual patterns.
+command.sampleintegration.expandpattern.only_player=Only players can run this command.
+command.sampleintegration.expandpattern.hold_pattern=Hold a smart pattern in your main hand.
+command.sampleintegration.expandpattern.not_encoded=This pattern is not encoded.
+command.sampleintegration.expandpattern.not_wildcard=This is not a wildcard pattern.
+command.sampleintegration.expandpattern.expanding=Expanding wildcard pattern: %s -> %s
+command.sampleintegration.expandpattern.expanded=Expanded into %s virtual patterns.
+command.sampleintegration.expandpattern.created=Created %s virtual patterns.
+

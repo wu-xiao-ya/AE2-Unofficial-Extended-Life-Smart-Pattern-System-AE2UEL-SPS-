@@ -1,5 +1,5 @@
 {
-	"package": "com.lwx1145.techstart.mixin",
+	"package": "com.lwx1145.sampleintegration.mixin",
 	"required": true,
 	"refmap": "${mixin_refmap}",
 	"target": "@env(DEFAULT)",
@@ -11,3 +11,4 @@
 	"server": [],
 	"client": []
 }
+

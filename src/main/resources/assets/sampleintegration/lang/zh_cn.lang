@@ -1,19 +1,56 @@
 # 物品
 item.sampleintegration.pattern_integrations.name=智能样板
-item.sampleintegration.pattern_integrations.desc0=基于矿物辞典的通配符样板物品
-item.sampleintegration.pattern_integrations.desc1=根据矿辞自动扩展，支持所有已注册金属
+item.sampleintegration.pattern_integrations.desc0=基于矿物词典的通配符样板物品
+item.sampleintegration.pattern_integrations.desc1=可自动展开为所有已注册金属配方
 
 # 方块
 tile.sampleintegration.pattern_expander.name=样板扩展器
 tile.sampleintegration.pattern_expander.desc=用于编辑和管理智能样板的专用方块
 
 # GUI
-gui.sampleintegration.pattern_editor=§6智能样板编辑器
+gui.sampleintegration.pattern_editor=智能样板编辑器
+gui.sampleintegration.pattern_filter=黑名单 / 白名单
 gui.sampleintegration.input=输入
 gui.sampleintegration.output=输出
+gui.sampleintegration.mode=模式：%s
+gui.sampleintegration.mode.blacklist=黑名单
+gui.sampleintegration.mode.whitelist=白名单
+gui.sampleintegration.tip_marker=提示：放入流体/气体容器可添加标记
+gui.sampleintegration.switch_to_filter=切换到黑白名单模式
+gui.sampleintegration.switch_to_editor=切换到智能样板模式
+gui.sampleintegration.toggle_filter_mode=切换黑白名单
+gui.sampleintegration.amount.set=设置数量
+gui.sampleintegration.amount.set_mb=设置数量 (mB)
+gui.sampleintegration.filter.empty_line=%s: <空>
+gui.sampleintegration.filter.ore_line=%s: %s
+gui.sampleintegration.filter.more=- ...
 
 # 消息
-message.sampleintegration.pattern_cleared=§a样板已清除
-message.sampleintegration.hint_edit=§e提示：将此物品放入模式展开器方块中进行编辑
-message.sampleintegration.no_pattern=§c请手持智能样板物品
-message.sampleintegration.pattern_saved=§a样板已保存
+message.sampleintegration.pattern_cleared=样板数据已清除
+message.sampleintegration.hint_edit=提示：将此物品放入样板扩展器方块中进行编辑
+message.sampleintegration.no_pattern=请主手持有智能样板
+message.sampleintegration.pattern_saved=样板已保存
+message.sampleintegration.invalid_amount=数量格式无效
+
+# 提示
+tooltip.sampleintegration.encoded=已编码：%s
+tooltip.sampleintegration.input_ore=输入 %s: %s x%s
+tooltip.sampleintegration.input_fluid=流体输入 %s: %s x%smB
+tooltip.sampleintegration.input_gas=气体输入 %s: %s x%smB
+tooltip.sampleintegration.output_ore=输出 %s: %s x%s
+tooltip.sampleintegration.output_fluid=流体输出 %s: %s x%smB
+tooltip.sampleintegration.output_gas=气体输出 %s: %s x%smB
+tooltip.sampleintegration.ore_type=矿词类型：%s
+tooltip.sampleintegration.open_editor=右键打开编辑器
+tooltip.sampleintegration.open_pattern_editor=右键打开样板编辑器
+tooltip.sampleintegration.mark_hint=将矿词物品、流体或气体容器放入 GUI 进行标记。
+
+# 命令
+command.sampleintegration.expandpattern.usage=/expandpattern - 将手中的通配符样板展开为虚拟样板。
+command.sampleintegration.expandpattern.only_player=该命令只能由玩家执行。
+command.sampleintegration.expandpattern.hold_pattern=请主手持有智能样板。
+command.sampleintegration.expandpattern.not_encoded=该样板尚未编码。
+command.sampleintegration.expandpattern.not_wildcard=该样板不是通配符样板。
+command.sampleintegration.expandpattern.expanding=正在展开通配符样板：%s -> %s
+command.sampleintegration.expandpattern.expanded=已展开为 %s 个虚拟样板。
+command.sampleintegration.expandpattern.created=已创建 %s 个虚拟样板。
