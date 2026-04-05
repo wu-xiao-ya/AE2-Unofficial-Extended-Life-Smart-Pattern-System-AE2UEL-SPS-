@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.wuxiaoya.techstart.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "techstart.mixins.refmap.json",
+  "mixins": [
+    "ae2.PatternProviderLogicMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

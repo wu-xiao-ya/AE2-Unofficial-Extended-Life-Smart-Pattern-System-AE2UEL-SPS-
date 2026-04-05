@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "PQP",
+    "PMP",
+    "PZP"
+  ],
+  "key": {
+    "P": {
+      "item": "ae2:quartz_glass"
+    },
+    "Q": {
+      "item": "ae2:annihilation_core"
+    },
+    "M": {
+      "item": "ae2:blank_pattern"
+    },
+    "Z": {
+      "item": "ae2:cell_component_1k"
+    }
+  },
+  "result": {
+    "item": "sampleintegration:pattern_integrations",
+    "count": 1
+  }
+}
+
